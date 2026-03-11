@@ -1,0 +1,11 @@
+node_modules
+dist
+out
+release
+playwright-report
+test-results
+coverage
+.tmp
+.DS_Store
+*.log
+*.tsbuildinfo

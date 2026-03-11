@@ -1,0 +1,6 @@
+{
+  "id": "dog",
+  "label": "狗",
+  "persona": "忠诚、稳定、偏执行与巡逻。",
+  "defaultGoal": "建设城镇并发展更多小 Agent"
+}

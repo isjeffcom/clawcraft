@@ -1,0 +1,25 @@
+appId: com.isjeff.clawcraft
+productName: Clawcraft
+directories:
+  output: release
+files:
+  - out/**/*
+  - package.json
+extraResources:
+  - from: resources
+    to: resources
+    filter:
+      - '**/*'
+mac:
+  target:
+    - dmg
+    - zip
+win:
+  target:
+    - nsis
+    - zip
+linux:
+  target:
+    - AppImage
+asar: true
+publish: []
