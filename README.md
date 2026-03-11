@@ -74,6 +74,18 @@ npm run build
 xvfb-run -a npm run test:e2e
 ```
 
+## 可选素材工具链
+
+如果你想用 PixelLab 生成占位素材，可使用：
+
+```bash
+PIXELLAB_API_KEY=your_key npm run pixellab:image -- \
+  --description "top-down pixel lobster admin in blue scarf" \
+  --output resources/assets/generated/lobster-admin.json
+```
+
+该脚本会把 PixelLab 返回结果保存为 JSON，便于后续提取图像数据并纳入资源管线。
+
 ## LLM Provider 配置
 
 首次进入应用时，需要在启动向导中填写：
