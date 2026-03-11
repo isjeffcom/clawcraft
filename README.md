@@ -47,6 +47,18 @@ npm install
 npm run dev
 ```
 
+如果你想把本地缓存、构建产物、测试临时目录、桌面应用本地配置一起清掉再重新启动，可用：
+
+```bash
+npm run dev:reset
+```
+
+只查看将要删除什么而不真正删除：
+
+```bash
+node --import tsx scripts/reset-dev.ts --dry-run
+```
+
 ## 构建
 
 ```bash

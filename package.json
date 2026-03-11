@@ -13,6 +13,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "dev:reset": "node --import tsx scripts/reset-dev.ts --run",
+    "reset:cache": "node --import tsx scripts/reset-dev.ts",
     "pixellab:image": "node --import tsx scripts/pixellab/generate-image.ts"
   },
   "repository": {

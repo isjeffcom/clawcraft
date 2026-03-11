@@ -8,7 +8,6 @@ import {
   Divider,
   Input,
   Spinner,
-  Switch,
   Tab,
   Tabs,
   Textarea
@@ -151,6 +150,28 @@ function OnboardingScreen({
 }) {
   const [settings, setSettings] = useState<AppSettings>(initialSettings)
   const [saving, setSaving] = useState(false)
+  const [step, setStep] = useState<'mode' | 'provider' | 'review'>(
+    initialSettings.offlineMode ? 'review' : initialSettings.apiKey ? 'review' : 'mode'
+  )
+  const [error, setError] = useState('')
+
+  const providerReady = settings.offlineMode || settings.apiKey.trim().length > 0
+
+  function goNext() {
+    setError('')
+    if (step === 'mode') {
+      setStep(settings.offlineMode ? 'review' : 'provider')
+      return
+    }
+
+    if (step === 'provider') {
+      if (!providerReady) {
+        setError('请先填写 API Key，或者返回上一步开启离线演示模式。')
+        return
+      }
+      setStep('review')
+    }
+  }
 
   return (
     <div className="grid flex-1 place-items-center overflow-auto p-6">
@@ -162,55 +183,150 @@ function OnboardingScreen({
             进入游戏前，需要先配置 OpenAI 或 MiniMax 的 API Key。为了便于本地调试，也可以启用离线演示模式，
             让世界先以本地启发式 AI 运转。
           </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Chip color={step === 'mode' ? 'primary' : 'default'} variant="flat">
+              1. 运行模式
+            </Chip>
+            <Chip color={step === 'provider' ? 'primary' : 'default'} variant="flat">
+              2. Provider 配置
+            </Chip>
+            <Chip color={step === 'review' ? 'primary' : 'default'} variant="flat">
+              3. 完成确认
+            </Chip>
+          </div>
         </CardHeader>
         <CardBody className="grid gap-6 p-8 pt-0 lg:grid-cols-[1.4fr_1fr]">
           <div className="grid gap-4">
-            <div className="grid gap-3 md:grid-cols-2">
-              <ProviderCard
-                active={settings.provider === 'openai'}
-                title="OpenAI"
-                subtitle="官方 OpenAI Chat Completions"
-                onPress={() => setSettings((current) => ({ ...current, provider: 'openai', baseUrl: createDefaultBaseUrl('openai') }))}
-              />
-              <ProviderCard
-                active={settings.provider === 'minimax'}
-                title="MiniMax"
-                subtitle="OpenAI 兼容模式"
-                onPress={() => setSettings((current) => ({ ...current, provider: 'minimax', baseUrl: createDefaultBaseUrl('minimax') }))}
-              />
-            </div>
-            <Input
-              label="API Key"
-              placeholder="sk-..."
-              type="password"
-              value={settings.apiKey}
-              onValueChange={(apiKey) => setSettings((current) => ({ ...current, apiKey }))}
-            />
-            <div className="grid gap-4 md:grid-cols-2">
-              <Input
-                label="模型"
-                value={settings.model}
-                onValueChange={(model) => setSettings((current) => ({ ...current, model }))}
-              />
-              <Input
-                label="Base URL"
-                value={settings.baseUrl}
-                onValueChange={(baseUrl) => setSettings((current) => ({ ...current, baseUrl }))}
-              />
-            </div>
-            {settings.provider === 'minimax' ? (
-              <Input
-                label="MiniMax Group ID（可选）"
-                value={settings.groupId ?? ''}
-                onValueChange={(groupId) => setSettings((current) => ({ ...current, groupId }))}
-              />
+            {step === 'mode' ? (
+              <div className="grid gap-4">
+                <p className="text-sm text-slate-300">先决定这次测试是走在线模式，还是先用离线演示模式。</p>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <ProviderCard
+                    active={!settings.offlineMode}
+                    title="在线模式"
+                    subtitle="填写 OpenAI / MiniMax API Key 后进入世界"
+                    onPress={() =>
+                      setSettings((current) => ({
+                        ...current,
+                        offlineMode: false
+                      }))
+                    }
+                  />
+                  <ProviderCard
+                    active={settings.offlineMode}
+                    title="离线演示模式"
+                    subtitle="不需要 API Key，适合先测试世界循环和 UI"
+                    onPress={() =>
+                      setSettings((current) => ({
+                        ...current,
+                        offlineMode: true
+                      }))
+                    }
+                  />
+                </div>
+                <div className="flex justify-end">
+                  <Button color="primary" onPress={goNext}>
+                    下一步
+                  </Button>
+                </div>
+              </div>
             ) : null}
-            <Switch
-              isSelected={settings.offlineMode}
-              onValueChange={(offlineMode) => setSettings((current) => ({ ...current, offlineMode }))}
-            >
-              启用离线演示模式（不联网时也能让 Agent 运行）
-            </Switch>
+
+            {step === 'provider' ? (
+              <div className="grid gap-4">
+                <p className="text-sm text-slate-300">现在再配置 Provider。没有 API Key 时，不能继续创建世界。</p>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <ProviderCard
+                    active={settings.provider === 'openai'}
+                    title="OpenAI"
+                    subtitle="官方 OpenAI Chat Completions"
+                    onPress={() => setSettings((current) => ({ ...current, provider: 'openai', baseUrl: createDefaultBaseUrl('openai') }))}
+                  />
+                  <ProviderCard
+                    active={settings.provider === 'minimax'}
+                    title="MiniMax"
+                    subtitle="OpenAI 兼容模式"
+                    onPress={() => setSettings((current) => ({ ...current, provider: 'minimax', baseUrl: createDefaultBaseUrl('minimax') }))}
+                  />
+                </div>
+                <Input
+                  label="API Key"
+                  placeholder="sk-..."
+                  type="password"
+                  value={settings.apiKey}
+                  onValueChange={(apiKey) => {
+                    setError('')
+                    setSettings((current) => ({ ...current, apiKey }))
+                  }}
+                />
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Input
+                    label="模型"
+                    value={settings.model}
+                    onValueChange={(model) => setSettings((current) => ({ ...current, model }))}
+                  />
+                  <Input
+                    label="Base URL"
+                    value={settings.baseUrl}
+                    onValueChange={(baseUrl) => setSettings((current) => ({ ...current, baseUrl }))}
+                  />
+                </div>
+                {settings.provider === 'minimax' ? (
+                  <Input
+                    label="MiniMax Group ID（可选）"
+                    value={settings.groupId ?? ''}
+                    onValueChange={(groupId) => setSettings((current) => ({ ...current, groupId }))}
+                  />
+                ) : null}
+                {error ? <div className="rounded-2xl border border-danger/30 bg-danger/10 p-3 text-sm text-danger-300">{error}</div> : null}
+                <div className="flex justify-between gap-3">
+                  <Button variant="flat" onPress={() => setStep('mode')}>
+                    上一步
+                  </Button>
+                  <Button color="primary" onPress={goNext}>
+                    下一步
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+
+            {step === 'review' ? (
+              <div className="grid gap-4">
+                <p className="text-sm text-slate-300">最后确认一次。完成后才会进入存档大厅，避免没配好就直接开世界。</p>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <Metric label="运行模式" value={settings.offlineMode ? '离线演示模式' : '在线模式'} />
+                  <Metric label="Provider" value={settings.offlineMode ? '本地启发式 AI' : settings.provider.toUpperCase()} />
+                  <Metric label="API 状态" value={settings.offlineMode ? '不需要 API Key' : settings.apiKey ? '已填写' : '未填写'} />
+                  <Metric label="默认模型" value={settings.model} />
+                </div>
+                {!providerReady ? (
+                  <div className="rounded-2xl border border-danger/30 bg-danger/10 p-3 text-sm text-danger-300">
+                    当前还不能继续：你还没有填写 API Key，也没有启用离线演示模式。
+                  </div>
+                ) : null}
+                <div className="flex justify-between gap-3">
+                  <Button variant="flat" onPress={() => setStep(settings.offlineMode ? 'mode' : 'provider')}>
+                    上一步
+                  </Button>
+                  <Button
+                    className="w-full max-w-xs"
+                    color="primary"
+                    isDisabled={!providerReady}
+                    isLoading={saving}
+                    onPress={async () => {
+                      setSaving(true)
+                      try {
+                        await onSaved(settings)
+                      } finally {
+                        setSaving(false)
+                      }
+                    }}
+                  >
+                    完成引导并进入存档大厅
+                  </Button>
+                </div>
+              </div>
+            ) : null}
           </div>
 
           <div className="panel rounded-3xl p-5">
@@ -227,21 +343,11 @@ function OnboardingScreen({
               <li>• Token Dashboard 会跟踪聊天和总结类调用消耗。</li>
               <li>• 已接入 Kenney Tiny Town 素材作为基础 2D 资源参考。</li>
             </ul>
-            <Button
-              className="mt-6 w-full"
-              color="primary"
-              isLoading={saving}
-              onPress={async () => {
-                setSaving(true)
-                try {
-                  await onSaved(settings)
-                } finally {
-                  setSaving(false)
-                }
-              }}
-            >
-              进入存档大厅
-            </Button>
+            <div className="mt-6 rounded-2xl border border-white/10 bg-slate-950/40 p-4 text-sm text-slate-300">
+              {step === 'mode' ? '先决定运行模式。' : null}
+              {step === 'provider' ? '这一步必须先填好 API Key，或者返回上一步启用离线演示模式。' : null}
+              {step === 'review' ? '只有当配置完整时，才会允许进入存档大厅。' : null}
+            </div>
           </div>
         </CardBody>
       </Card>
