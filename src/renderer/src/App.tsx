@@ -374,8 +374,15 @@ function ProviderCard({
         active ? 'border-cyan-400 bg-cyan-400/10' : 'border-white/10 bg-white/5 hover:border-white/20'
       }`}
     >
-      <div className="text-lg font-semibold text-white">{title}</div>
-      <div className="mt-1 text-sm text-slate-300">{subtitle}</div>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="text-lg font-semibold text-white">{title}</div>
+          <div className="mt-1 text-sm text-slate-300">{subtitle}</div>
+        </div>
+        <Chip size="sm" color={active ? 'primary' : 'default'} variant="flat">
+          {active ? '已选择' : '点击选择'}
+        </Chip>
+      </div>
     </button>
   )
 }
@@ -421,19 +428,29 @@ function SaveLobby({
                   }`}
                   onClick={() => setDraft((current) => ({ ...current, species }))}
                 >
-                  <div className="text-lg font-semibold text-white">{speciesLabels[species]}</div>
-                  <div className="mt-1 text-xs text-slate-400">
-                    {species === 'lobster'
-                      ? '坚韧、适合高压管理'
-                      : species === 'cat'
-                        ? '灵巧、偏扩张与探索'
-                        : species === 'dog'
-                          ? '稳定、偏执行与巡逻'
-                          : '温顺、偏资源与耕作'}
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-lg font-semibold text-white">{speciesLabels[species]}</div>
+                      <div className="mt-1 text-xs text-slate-400">
+                        {species === 'lobster'
+                          ? '坚韧、适合高压管理'
+                          : species === 'cat'
+                            ? '灵巧、偏扩张与探索'
+                            : species === 'dog'
+                              ? '稳定、偏执行与巡逻'
+                              : '温顺、偏资源与耕作'}
+                      </div>
+                    </div>
+                    <Chip size="sm" color={draft.species === species ? 'primary' : 'default'} variant="flat">
+                      {draft.species === species ? '当前选择' : '点击选择'}
+                    </Chip>
                   </div>
                 </button>
               ))}
             </div>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-slate-950/30 p-3 text-sm text-slate-300">
+            当前管理员：<span className="font-semibold text-white">{speciesLabels[draft.species]}</span>
           </div>
           <Button
             color="primary"
