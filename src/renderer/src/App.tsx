@@ -215,11 +215,17 @@ function OnboardingScreen({
 
           <div className="panel rounded-3xl p-5">
             <h2 className="text-lg font-semibold text-white">稳定性策略</h2>
+            <img
+              src="/assets/kenney/tiny-town-preview.png"
+              alt="Kenney Tiny Town 预览"
+              className="mt-4 h-32 w-full rounded-2xl border border-white/10 object-cover"
+            />
             <ul className="mt-4 space-y-3 text-sm text-slate-300">
               <li>• 默认 2D 俯视角，桌宠模式也能看清 Agent 动作。</li>
               <li>• Admin Agent 默认目标：建设城镇、发展更多小 Agent。</li>
               <li>• Authority 会拒绝危险命令、限制世界边界与内存膨胀。</li>
               <li>• Token Dashboard 会跟踪聊天和总结类调用消耗。</li>
+              <li>• 已接入 Kenney Tiny Town 素材作为基础 2D 资源参考。</li>
             </ul>
             <Button
               className="mt-6 w-full"
@@ -291,6 +297,11 @@ function SaveLobby({
           <p className="text-sm text-slate-300">选择管理员物种后，剩下的世界将交给 Agent 自己生长。</p>
         </CardHeader>
         <CardBody className="gap-4">
+          <img
+            src="/assets/kenney/tiny-town-preview.png"
+            alt="Kenney Tiny Town 俯视角参考"
+            className="h-32 w-full rounded-3xl border border-white/10 object-cover"
+          />
           <Input label="存档名" value={draft.name} onValueChange={(name) => setDraft((current) => ({ ...current, name }))} />
           <div className="grid gap-3">
             <p className="text-sm text-slate-400">管理员物种</p>

@@ -86,6 +86,16 @@ PIXELLAB_API_KEY=your_key npm run pixellab:image -- \
 
 该脚本会把 PixelLab 返回结果保存为 JSON，便于后续提取图像数据并纳入资源管线。
 
+## 已接入的基础 Kenney 素材
+
+仓库当前已引入一组 **Kenney Tiny Town** 基础文件，位于：
+
+```text
+resources/assets/kenney/tiny-town/
+```
+
+并在启动向导 / 存档大厅中作为 2D 俯视角资源参考预览图使用。
+
 ## LLM Provider 配置
 
 首次进入应用时，需要在启动向导中填写：
