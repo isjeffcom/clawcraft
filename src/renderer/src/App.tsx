@@ -6,7 +6,6 @@ import {
   CardHeader,
   Chip,
   Divider,
-  Input,
   Spinner,
   Tab,
   Tabs,
@@ -249,41 +248,29 @@ function OnboardingScreen({
                     onPress={() => setSettings((current) => ({ ...current, provider: 'minimax', baseUrl: createDefaultBaseUrl('minimax') }))}
                   />
                 </div>
-                <Input
+                <FieldInput
                   label="API Key"
-                  labelPlacement="outside"
-                  variant="bordered"
                   placeholder="sk-..."
                   type="password"
                   value={settings.apiKey}
-                  onValueChange={(apiKey) => {
+                  onChange={(apiKey) => {
                     setError('')
                     setSettings((current) => ({ ...current, apiKey }))
                   }}
                 />
                 <div className="grid gap-4 md:grid-cols-2">
-                  <Input
-                    label="模型"
-                    labelPlacement="outside"
-                    variant="bordered"
-                    value={settings.model}
-                    onValueChange={(model) => setSettings((current) => ({ ...current, model }))}
-                  />
-                  <Input
+                  <FieldInput label="模型" value={settings.model} onChange={(model) => setSettings((current) => ({ ...current, model }))} />
+                  <FieldInput
                     label="Base URL"
-                    labelPlacement="outside"
-                    variant="bordered"
                     value={settings.baseUrl}
-                    onValueChange={(baseUrl) => setSettings((current) => ({ ...current, baseUrl }))}
+                    onChange={(baseUrl) => setSettings((current) => ({ ...current, baseUrl }))}
                   />
                 </div>
                 {settings.provider === 'minimax' ? (
-                  <Input
+                  <FieldInput
                     label="MiniMax Group ID（可选）"
-                    labelPlacement="outside"
-                    variant="bordered"
                     value={settings.groupId ?? ''}
-                    onValueChange={(groupId) => setSettings((current) => ({ ...current, groupId }))}
+                    onChange={(groupId) => setSettings((current) => ({ ...current, groupId }))}
                   />
                 ) : null}
                 {error ? <div className="rounded-2xl border border-danger/30 bg-danger/10 p-3 text-sm text-danger-300">{error}</div> : null}
@@ -395,6 +382,33 @@ function ProviderCard({
   )
 }
 
+function FieldInput({
+  label,
+  value,
+  onChange,
+  placeholder,
+  type = 'text'
+}: {
+  label: string
+  value: string
+  onChange: (value: string) => void
+  placeholder?: string
+  type?: 'text' | 'password'
+}) {
+  return (
+    <label className="grid gap-2">
+      <span className="text-sm font-medium text-slate-200">{label}</span>
+      <input
+        className="field-input"
+        type={type}
+        value={value}
+        placeholder={placeholder}
+        onChange={(event) => onChange(event.target.value)}
+      />
+    </label>
+  )
+}
+
 function SaveLobby({
   saves,
   onCreate,
@@ -423,7 +437,7 @@ function SaveLobby({
             alt="Kenney Tiny Town 俯视角参考"
             className="h-32 w-full rounded-3xl border border-white/10 object-cover"
           />
-          <Input label="存档名" value={draft.name} onValueChange={(name) => setDraft((current) => ({ ...current, name }))} />
+          <FieldInput label="存档名" value={draft.name} onChange={(name) => setDraft((current) => ({ ...current, name }))} />
           <div className="grid gap-3">
             <p className="text-sm text-slate-400">管理员物种</p>
             <div className="grid grid-cols-2 gap-3">
