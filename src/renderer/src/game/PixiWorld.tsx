@@ -6,6 +6,7 @@ type Props = {
   save: WorldSave
   compact: boolean
   onMovePlayer?: (position: { x: number; y: number }) => void
+  playerTarget?: { x: number; y: number } | null
 }
 
 const TILE_COLORS: Record<string, number> = {
@@ -202,7 +203,7 @@ function terrainAsset(tile: TerrainType, worldX: number, worldY: number): string
   return null
 }
 
-export function PixiWorld({ save, compact, onMovePlayer }: Props) {
+export function PixiWorld({ save, compact, onMovePlayer, playerTarget }: Props) {
   const hostRef = useRef<HTMLDivElement | null>(null)
   const appRef = useRef<Application | null>(null)
   const resizeObserverRef = useRef<ResizeObserver | null>(null)
@@ -465,6 +466,22 @@ export function PixiWorld({ save, compact, onMovePlayer }: Props) {
       }
     }
 
+    if (
+      playerTarget &&
+      playerTarget.x >= startX &&
+      playerTarget.x < startX + visibleCols &&
+      playerTarget.y >= startY &&
+      playerTarget.y < startY + visibleRows
+    ) {
+      addTileSprite(
+        agents,
+        tinyTownTilePath(TARGET_TILE),
+        (playerTarget.x - startX) * tileSize,
+        (playerTarget.y - startY) * tileSize,
+        tileSize
+      )
+    }
+
     const info = new Text({
       text: compact
         ? `Admin：${admin.currentTask}`
@@ -569,6 +586,7 @@ function DomWorldFallback({
   save,
   compact,
   onMovePlayer,
+  playerTarget,
   tileSize,
   visibleCols,
   visibleRows,
@@ -780,6 +798,24 @@ function DomWorldFallback({
             }}
           />
         </div>
+      ) : null}
+
+      {playerTarget &&
+      playerTarget.x >= startX &&
+      playerTarget.x < startX + visibleCols &&
+      playerTarget.y >= startY &&
+      playerTarget.y < startY + visibleRows ? (
+        <img
+          src={tinyTownTilePath(TARGET_TILE)}
+          alt="player target"
+          className="absolute pixelated"
+          style={{
+            left: (playerTarget.x - startX) * tileSize,
+            top: (playerTarget.y - startY) * tileSize,
+            width: tileSize,
+            height: tileSize
+          }}
+        />
       ) : null}
 
       <div className="pointer-events-none absolute left-3 right-3 top-10 z-20 rounded-2xl bg-slate-950/55 px-3 py-2 text-xs text-slate-100">

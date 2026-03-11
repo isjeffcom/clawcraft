@@ -653,6 +653,7 @@ function WorldWorkspace({
   const [chatInput, setChatInput] = useState('')
   const [sending, setSending] = useState(false)
   const [renderMode, setRenderMode] = useState<'2d' | '3d'>('2d')
+  const [playerTarget, setPlayerTarget] = useState<{ x: number; y: number } | null>(null)
   const [assetPrompt, setAssetPrompt] = useState('top-down pixel tiny town storage hut with blue roof')
   const [assetLoading, setAssetLoading] = useState(false)
   const [assetError, setAssetError] = useState('')
@@ -696,6 +697,7 @@ function WorldWorkspace({
         const next = structuredClone(current)
         next.world.player.position.x = nextX
         next.world.player.position.y = nextY
+        setPlayerTarget(null)
         runtimeRef.current?.replaceSave(next)
         return next
       })
@@ -704,6 +706,31 @@ function WorldWorkspace({
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [])
+
+  useEffect(() => {
+    if (!playerTarget) return
+    const timer = window.setInterval(() => {
+      setSave((current) => {
+        const { x, y } = current.world.player.position
+        if (x === playerTarget.x && y === playerTarget.y) {
+          setPlayerTarget(null)
+          return current
+        }
+
+        const dx = playerTarget.x - x
+        const dy = playerTarget.y - y
+        const nextX = x + (dx === 0 ? 0 : Math.sign(dx))
+        const nextY = y + (dx !== 0 ? 0 : dy === 0 ? 0 : Math.sign(dy))
+        const next = structuredClone(current)
+        next.world.player.position.x = Math.max(0, Math.min(next.world.width - 1, nextX))
+        next.world.player.position.y = Math.max(0, Math.min(next.world.height - 1, nextY))
+        runtimeRef.current?.replaceSave(next)
+        return next
+      })
+    }, 90)
+
+    return () => window.clearInterval(timer)
+  }, [playerTarget])
 
   const admin = save.world.agents.find((agent) => agent.role === 'admin') ?? save.world.agents[0]
   const canTalkToAdmin = tileDistance(save.world.player.position, admin.position) <= 2
@@ -760,13 +787,7 @@ function WorldWorkspace({
   }
 
   function movePlayerTo(position: { x: number; y: number }) {
-    setSave((current) => {
-      const next = structuredClone(current)
-      next.world.player.position.x = position.x
-      next.world.player.position.y = position.y
-      runtimeRef.current?.replaceSave(next)
-      return next
-    })
+    setPlayerTarget(position)
   }
 
   async function refreshPixelLabBalance() {
@@ -832,7 +853,7 @@ function WorldWorkspace({
     <div className="relative flex-1 overflow-hidden p-4">
       <div className="relative h-full overflow-hidden rounded-[2rem] border border-white/10 bg-slate-950/40">
         {renderMode === '2d' ? (
-          <PixiWorld save={save} compact={false} onMovePlayer={movePlayerTo} />
+          <PixiWorld save={save} compact={false} onMovePlayer={movePlayerTo} playerTarget={playerTarget} />
         ) : (
           <div className="grid h-full place-items-center rounded-[1.2rem] bg-slate-950/50">
             <div className="max-w-lg text-center">
