@@ -7,6 +7,7 @@ export const IPC_CHANNELS = {
   SAVE_WORLD: 'saves:write',
   TOGGLE_WINDOW_MODE: 'window:toggle-mode',
   WINDOW_MINIMIZE: 'window:minimize',
+  WINDOW_TOGGLE_MAXIMIZE: 'window:toggle-maximize',
   WINDOW_CLOSE: 'window:close',
   CHAT_ADMIN: 'agent:chat-admin',
   PIXELLAB_BALANCE: 'pixellab:balance',

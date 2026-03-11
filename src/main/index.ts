@@ -4,7 +4,7 @@ import { IPC_CHANNELS } from '../shared/ipc'
 import { chatWithAdmin } from './llm'
 import { generatePixelLabImage, getPixelLabBalance } from './pixellab'
 import { createSave, getBootstrapState, getSettings, listSaves, loadSave, saveSettings, writeSave } from './storage'
-import { createMainWindow, getMainWindow, toggleWindowMode } from './windowManager'
+import { createMainWindow, getMainWindow, toggleWindowMaximize, toggleWindowMode } from './windowManager'
 
 function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.BOOTSTRAP, () => getBootstrapState())
@@ -28,6 +28,7 @@ function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.WINDOW_MINIMIZE, () => {
     getMainWindow()?.minimize()
   })
+  ipcMain.handle(IPC_CHANNELS.WINDOW_TOGGLE_MAXIMIZE, () => toggleWindowMaximize())
   ipcMain.handle(IPC_CHANNELS.WINDOW_CLOSE, () => {
     getMainWindow()?.close()
   })

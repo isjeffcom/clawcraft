@@ -14,6 +14,7 @@ const api = {
   generatePixelLabImage: (request: PixelLabGenerateRequest) => ipcRenderer.invoke(IPC_CHANNELS.PIXELLAB_GENERATE, request),
   toggleWindowMode: (mode: WindowMode) => ipcRenderer.invoke(IPC_CHANNELS.TOGGLE_WINDOW_MODE, mode),
   minimizeWindow: () => ipcRenderer.invoke(IPC_CHANNELS.WINDOW_MINIMIZE),
+  toggleWindowMaximize: () => ipcRenderer.invoke(IPC_CHANNELS.WINDOW_TOGGLE_MAXIMIZE),
   closeWindow: () => ipcRenderer.invoke(IPC_CHANNELS.WINDOW_CLOSE)
 }
 

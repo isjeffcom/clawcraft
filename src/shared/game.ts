@@ -102,6 +102,7 @@ function createAgent(name: string, species: AgentSpecies, role: 'admin' | 'npc',
       stone: 0
     },
     currentTask: role === 'admin' ? '观察荒野并筹建城镇' : '等待管理员派工',
+    actionTicks: 0,
     plan: role === 'admin' ? '建设城镇并派生更多小 Agent' : '协助管理员收集与建设',
     focus: 'expand',
     memories: [],
@@ -272,6 +273,7 @@ function depositAtTown(world: WorldSave['world'], agent: AgentState): boolean {
   world.stockpile.stone += agent.inventory.stone
   agent.inventory.wood = 0
   agent.inventory.stone = 0
+  agent.actionTicks = 0
   return true
 }
 
@@ -281,6 +283,11 @@ function maybeHarvest(world: WorldSave['world'], agent: AgentState, resource: Re
   const currentCarry = agent.inventory.wood + agent.inventory.stone
   if (currentCarry >= CARRY_CAPACITY) return false
 
+  agent.actionTicks += 1
+  if (agent.actionTicks < 5) {
+    return false
+  }
+  agent.actionTicks = 0
   resource.amount -= 1
   if (resource.kind === 'tree') {
     agent.inventory.wood += 1
@@ -312,6 +319,7 @@ function advanceAgent(save: WorldSave, agent: AgentState, index: number): void {
   const carrying = agent.inventory.wood + agent.inventory.stone
   if (carrying > 0) {
     agent.currentTask = '返回城镇交付资源'
+    agent.actionTicks = 0
     agent.position = moveStep(agent.position, world.townCenter, world.width, world.height)
     return
   }
@@ -323,7 +331,13 @@ function advanceAgent(save: WorldSave, agent: AgentState, index: number): void {
       if (enough) {
         agent.currentTask = `前往工地建设 ${nextBuilding.kind}`
         agent.position = moveStep(agent.position, nextBuilding.position, world.width, world.height)
-        if (samePoint(agent.position, nextBuilding.position) && spendStockpile(world, nextBuilding.wood, nextBuilding.stone)) {
+        if (samePoint(agent.position, nextBuilding.position)) {
+          agent.actionTicks += 1
+        } else {
+          agent.actionTicks = 0
+        }
+        if (agent.actionTicks >= 6 && spendStockpile(world, nextBuilding.wood, nextBuilding.stone)) {
+          agent.actionTicks = 0
           completeBuilding(world, nextBuilding.kind, nextBuilding.position)
           addMemory(agent, world.authority, 'action', `我完成了 ${nextBuilding.kind} 的建设。`)
           save.meta.buildingCount = world.buildings.length
@@ -341,6 +355,7 @@ function advanceAgent(save: WorldSave, agent: AgentState, index: number): void {
 
   if (!resource) {
     agent.currentTask = '巡逻并观察荒野'
+    agent.actionTicks = 0
     agent.position = moveStep(
       agent.position,
       {
@@ -354,7 +369,11 @@ function advanceAgent(save: WorldSave, agent: AgentState, index: number): void {
   }
 
   agent.currentTask = desiredResource === 'tree' ? '前往森林砍树' : '前往采石点搬运石料'
-  agent.position = moveStep(agent.position, resource.position, world.width, world.height)
+  const moved = moveStep(agent.position, resource.position, world.width, world.height)
+  if (!samePoint(moved, agent.position)) {
+    agent.actionTicks = 0
+  }
+  agent.position = moved
   if (maybeHarvest(world, agent, resource)) {
     addMemory(
       agent,
@@ -801,6 +820,7 @@ export function migrateWorldSave(raw: unknown): WorldSave {
   }))
   parsed.world.agents = parsed.world.agents.map((agent) => ({
     ...agent,
+    actionTicks: agent.actionTicks ?? 0,
     scriptId: agent.scriptId ?? (agent.role === 'admin' ? 'admin-core' : 'settlement-worker')
   }))
   return {

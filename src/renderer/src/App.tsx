@@ -124,22 +124,37 @@ export function App() {
 }
 
 function WindowTitleBar({ compactMode }: { compactMode: boolean }) {
+  const isMac = typeof navigator !== 'undefined' && /Mac/i.test(navigator.platform || navigator.userAgent)
   return (
     <div className="drag-region flex h-12 items-center justify-between border-b border-white/10 px-4 text-sm text-slate-200">
       <div className="flex items-center gap-3">
+        {isMac ? (
+          <div className="no-drag flex items-center gap-2">
+            <button type="button" className="window-dot bg-rose-500" onClick={() => void window.clawcraft.closeWindow()} aria-label="关闭窗口" />
+            <button type="button" className="window-dot bg-amber-400" onClick={() => void window.clawcraft.minimizeWindow()} aria-label="最小化窗口" />
+            <button type="button" className="window-dot bg-emerald-500" onClick={() => void window.clawcraft.toggleWindowMaximize()} aria-label="切换窗口尺寸" />
+          </div>
+        ) : null}
         <span className="text-base font-semibold tracking-wide text-cyan-300">Clawcraft</span>
         <Chip size="sm" variant="flat" color={compactMode ? 'warning' : 'primary'}>
           {compactMode ? '桌宠模式' : '标准模式'}
         </Chip>
       </div>
-      <div className="no-drag flex items-center gap-2">
-        <Button size="sm" variant="flat" onPress={() => void window.clawcraft.minimizeWindow()}>
-          最小化
-        </Button>
-        <Button size="sm" color="danger" variant="flat" onPress={() => void window.clawcraft.closeWindow()}>
-          关闭
-        </Button>
-      </div>
+      {!isMac ? (
+        <div className="no-drag flex items-center gap-2">
+          <Button size="sm" variant="flat" onPress={() => void window.clawcraft.minimizeWindow()}>
+            最小化
+          </Button>
+          <Button size="sm" variant="flat" onPress={() => void window.clawcraft.toggleWindowMaximize()}>
+            还原/最大化
+          </Button>
+          <Button size="sm" color="danger" variant="flat" onPress={() => void window.clawcraft.closeWindow()}>
+            关闭
+          </Button>
+        </div>
+      ) : (
+        <div className="w-20" />
+      )}
     </div>
   )
 }
@@ -866,17 +881,17 @@ function WorldWorkspace({
         )}
 
         <div className="pointer-events-none absolute inset-0">
-          <div className="pointer-events-auto absolute left-4 top-4 panel rounded-3xl px-5 py-4">
-            <div className="flex flex-wrap items-center gap-3">
+          <div className="pointer-events-auto absolute left-4 top-4 max-w-[min(58rem,calc(100%-25rem))] panel rounded-3xl px-5 py-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h2 className="text-2xl font-semibold text-white">{save.meta.name}</h2>
-                <p className="mt-1 text-sm text-slate-300">{getWorldSummary(save)}</p>
+                <p className="mt-1 text-sm text-slate-300">跟着玩家观察这个自进化的小镇世界，靠近 Admin 后交谈，推动它继续建设。</p>
               </div>
               <div className="flex flex-wrap gap-2">
-                <Button variant="flat" onPress={() => void persist(save)}>
+                <Button color="primary" variant="flat" onPress={() => void persist(save)}>
                   保存
                 </Button>
-                <Button variant="flat" onPress={() => void onCompactChange(true)}>
+                <Button color="secondary" variant="flat" onPress={() => void onCompactChange(true)}>
                   桌宠模式
                 </Button>
                 <Button color="warning" variant="flat" onPress={() => void onBack()}>
@@ -893,29 +908,34 @@ function WorldWorkspace({
                 3D（占位）
               </Button>
               <Chip color="primary" variant="flat">
-                玩家 {save.world.player.position.x},{save.world.player.position.y}
+                👤 玩家 {save.world.player.position.x},{save.world.player.position.y}
               </Chip>
               <Chip color="success" variant="flat">
-                焦点：{focusLabels[save.world.focus]}
+                🎯 {focusLabels[save.world.focus]}
               </Chip>
               <Chip color="warning" variant="flat">
-                库存 木 {save.world.stockpile.wood} / 石 {save.world.stockpile.stone}
+                🌲 {save.world.stockpile.wood} / 🪨 {save.world.stockpile.stone}
               </Chip>
               <Chip color="secondary" variant="flat">
-                操作：WASD / 点击地图
+                ⌨️ WASD / 点击地图
+              </Chip>
+              <Chip color="default" variant="flat">
+                🏠 建筑 {save.world.buildings.length} / 🤖 Agent {save.world.agents.length}
               </Chip>
             </div>
           </div>
 
           <div className="pointer-events-auto absolute right-4 top-4 bottom-4 w-[360px]">
             <Card className="panel h-full rounded-[2rem]">
-              <CardBody className="h-full">
+              <CardBody className="h-full overflow-hidden">
                 <Tabs aria-label="World panels" className="h-full min-h-0">
                   <Tab key="overview" title="概览">
-                    <OverviewPanel save={save} />
+                    <div className="h-full overflow-y-auto pr-1">
+                      <OverviewPanel save={save} />
+                    </div>
                   </Tab>
                   <Tab key="dialogue-log" title="对话记录">
-                    <div className="max-h-[520px] overflow-auto rounded-2xl border border-white/10 bg-slate-950/30 p-3">
+                    <div className="h-full max-h-[520px] overflow-auto rounded-2xl border border-white/10 bg-slate-950/30 p-3">
                       <div className="space-y-3">
                         {save.world.chatLog.slice(-16).map((message) => (
                           <div key={message.id} className="rounded-2xl border border-white/8 bg-white/5 p-3 text-sm">
@@ -927,20 +947,24 @@ function WorldWorkspace({
                     </div>
                   </Tab>
                   <Tab key="token" title="Token Dashboard">
-                    <TokenDashboard save={save} />
+                    <div className="h-full overflow-y-auto pr-1">
+                      <TokenDashboard save={save} />
+                    </div>
                   </Tab>
                   <Tab key="asset-lab" title="素材工坊">
-                    <AssetLabPanel
-                      prompt={assetPrompt}
-                      onPromptChange={setAssetPrompt}
-                      onGenerate={() => void generatePixelAsset()}
-                      onRefreshBalance={() => void refreshPixelLabBalance()}
-                      loading={assetLoading}
-                      error={assetError}
-                      preview={assetPreview}
-                      savedPath={assetSavedPath}
-                      balance={pixelLabBalance}
-                    />
+                    <div className="h-full overflow-y-auto pr-1">
+                      <AssetLabPanel
+                        prompt={assetPrompt}
+                        onPromptChange={setAssetPrompt}
+                        onGenerate={() => void generatePixelAsset()}
+                        onRefreshBalance={() => void refreshPixelLabBalance()}
+                        loading={assetLoading}
+                        error={assetError}
+                        preview={assetPreview}
+                        savedPath={assetSavedPath}
+                        balance={pixelLabBalance}
+                      />
+                    </div>
                   </Tab>
                 </Tabs>
               </CardBody>
@@ -1082,19 +1106,19 @@ function OverviewPanel({ save }: { save: WorldSave }) {
       <Divider className="bg-white/10" />
 
       <div className="grid gap-3">
-        <h3 className="text-base font-semibold text-white">Authority 稳定性快照</h3>
+        <h3 className="text-base font-semibold text-white">世界负载</h3>
         <AuthorityBar
-          label={`Agent 负载 ${save.world.agents.length}/${save.world.authority.maxAgents}`}
+          label={`Agent 占用 ${save.world.agents.length}/${save.world.authority.maxAgents}`}
           value={authority.agentLoad}
           tone="linear-gradient(90deg, #06b6d4, #60a5fa)"
         />
         <AuthorityBar
-          label={`建筑负载 ${save.world.buildings.length}/${save.world.authority.maxBuildings}`}
+          label={`建筑占用 ${save.world.buildings.length}/${save.world.authority.maxBuildings}`}
           value={authority.buildingLoad}
           tone="linear-gradient(90deg, #d946ef, #8b5cf6)"
         />
         <AuthorityBar
-          label={`记忆负载 ${authority.memoryUsage}/${authority.memoryCapacity}`}
+          label={`记忆容量 ${authority.memoryUsage}/${authority.memoryCapacity}`}
           value={authority.memoryLoad}
           tone="linear-gradient(90deg, #f59e0b, #fb923c)"
         />
@@ -1103,10 +1127,10 @@ function OverviewPanel({ save }: { save: WorldSave }) {
       <Divider className="bg-white/10" />
 
       <div className="grid gap-3">
-        <h3 className="text-base font-semibold text-white">受限脚本演化</h3>
+        <h3 className="text-base font-semibold text-white">AI 行为设置</h3>
         <div className="grid gap-3 md:grid-cols-2">
-          <Metric label="Admin Script" value={`${adminScript?.name ?? '未加载'} · v${adminScript?.version ?? 0}`} />
-          <Metric label="当前参数" value={adminScript ? `木 ${adminScript.params.woodBias} / 石 ${adminScript.params.stoneBias}` : '无'} />
+          <Metric label="行为脚本" value={`${adminScript?.name ?? '未加载'} · v${adminScript?.version ?? 0}`} />
+          <Metric label="资源偏好" value={adminScript ? `木 ${adminScript.params.woodBias} / 石 ${adminScript.params.stoneBias}` : '无'} />
         </div>
         <div className="space-y-2">
           {save.world.scriptEvents.slice(-3).reverse().map((event) => (

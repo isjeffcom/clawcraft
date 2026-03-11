@@ -77,3 +77,13 @@ export function toggleWindowMode(nextMode: WindowMode): WindowMode {
 export function getWindowMode(): WindowMode {
   return currentMode
 }
+
+export function toggleWindowMaximize(): boolean {
+  if (!mainWindow) return false
+  if (mainWindow.isMaximized()) {
+    mainWindow.unmaximize()
+    return false
+  }
+  mainWindow.maximize()
+  return true
+}

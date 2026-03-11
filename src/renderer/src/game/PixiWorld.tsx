@@ -102,6 +102,10 @@ function addTileSprite(container: Container, assetPath: string, x: number, y: nu
   return sprite
 }
 
+function taskBubbleText(agent: WorldSave['world']['agents'][number]) {
+  return agent.actionTicks > 0 ? `${agent.currentTask} · ${agent.actionTicks}/5` : agent.currentTask
+}
+
 function addPathIfNeeded(container: Container, tileX: number, tileY: number, localX: number, localY: number, tileSize: number, townCenter: WorldSave['world']['townCenter'], buildings: WorldSave['world']['buildings']) {
   if (shouldRenderPathTile(tileX, tileY, townCenter, buildings)) {
     addTileSprite(container, tinyTownTilePath(PATH_TILE), localX, localY, tileSize)
@@ -435,6 +439,22 @@ export function PixiWorld({ save, compact, onMovePlayer, playerTarget }: Props) 
         label.x = localX + tileSize * 0.28
         label.y = localY + tileSize * 0.14
         agents.addChild(label)
+        if (agent.role === 'admin') {
+          const bubble = new Graphics()
+          bubble.roundRect(localX - tileSize * 1.1, localY - tileSize * 0.9, tileSize * 3.2, tileSize * 0.7, 6).fill(0x020617, 0.78)
+          agents.addChild(bubble)
+          const bubbleText = new Text({
+            text: taskBubbleText(agent),
+            style: {
+              fill: '#e2e8f0',
+              fontSize: Math.max(8, tileSize * 0.22),
+              fontWeight: '600'
+            }
+          })
+          bubbleText.x = localX - tileSize * 1.02
+          bubbleText.y = localY - tileSize * 0.82
+          agents.addChild(bubbleText)
+        }
       }
     })
 
@@ -744,6 +764,17 @@ function DomWorldFallback({
         const top = (agent.position.y - startY) * tileSize
         return (
           <div key={agent.id}>
+            {agent.role === 'admin' ? (
+              <div
+                className="absolute rounded-full bg-slate-950/80 px-2 py-1 text-[10px] text-slate-100"
+                style={{
+                  left: left - tileSize * 0.9,
+                  top: top - tileSize * 0.95
+                }}
+              >
+                {taskBubbleText(agent)}
+              </div>
+            ) : null}
             {agent.role === 'admin' ? (
               <div
                 className="absolute rounded-full"

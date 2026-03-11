@@ -93,6 +93,7 @@ export const agentStateSchema = z.object({
   position: pointSchema,
   inventory: inventorySchema,
   currentTask: z.string(),
+  actionTicks: z.number().int().nonnegative(),
   plan: z.string(),
   focus: focusGoalSchema,
   memories: z.array(memoryEntrySchema),
