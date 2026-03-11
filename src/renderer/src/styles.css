@@ -96,3 +96,17 @@ body {
 .pixelated {
   image-rendering: pixelated;
 }
+
+.sprite-bob {
+  animation: sprite-bob 0.9s ease-in-out infinite;
+}
+
+@keyframes sprite-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-1px);
+  }
+}

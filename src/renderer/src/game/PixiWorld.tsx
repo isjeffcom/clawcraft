@@ -102,6 +102,17 @@ function addTileSprite(container: Container, assetPath: string, x: number, y: nu
 }
 
 function addPathIfNeeded(container: Container, tileX: number, tileY: number, localX: number, localY: number, tileSize: number, townCenter: WorldSave['world']['townCenter'], buildings: WorldSave['world']['buildings']) {
+  if (shouldRenderPathTile(tileX, tileY, townCenter, buildings)) {
+    addTileSprite(container, tinyTownTilePath(PATH_TILE), localX, localY, tileSize)
+  }
+}
+
+function shouldRenderPathTile(
+  tileX: number,
+  tileY: number,
+  townCenter: WorldSave['world']['townCenter'],
+  buildings: WorldSave['world']['buildings']
+) {
   const sameColumn = tileX === townCenter.x && Math.abs(tileY - townCenter.y) <= 8
   const sameRow = tileY === townCenter.y && Math.abs(tileX - townCenter.x) <= 8
   const nearBuilding = buildings.some(
@@ -111,9 +122,63 @@ function addPathIfNeeded(container: Container, tileX: number, tileY: number, loc
       building.complete
   )
 
-  if (sameColumn || sameRow || nearBuilding) {
-    addTileSprite(container, tinyTownTilePath(PATH_TILE), localX, localY, tileSize)
+  return sameColumn || sameRow || nearBuilding
+}
+
+type TilePlacement = {
+  tileId: number
+  dx: number
+  dy: number
+}
+
+function getBuildingTilePlacements(kind: WorldSave['world']['buildings'][number]['kind']): TilePlacement[] {
+  if (kind === 'campfire') {
+    return [{ tileId: CAMPFIRE_TILE, dx: 1, dy: 2 }]
   }
+
+  if (kind === 'storage') {
+    return [
+      { tileId: BLUE_ROOF[0], dx: 0, dy: 0 },
+      { tileId: BLUE_GABLE, dx: 1, dy: 0 },
+      { tileId: BLUE_ROOF[2], dx: 2, dy: 0 },
+      { tileId: STONE_WALL_LEFT, dx: 0, dy: 1 },
+      { tileId: STONE_WINDOW, dx: 1, dy: 1 },
+      { tileId: STONE_WALL_RIGHT, dx: 2, dy: 1 },
+      { tileId: STONE_WALL_LEFT, dx: 0, dy: 2 },
+      { tileId: STONE_DOOR, dx: 1, dy: 2 },
+      { tileId: STONE_WALL_RIGHT, dx: 2, dy: 2 },
+      { tileId: CRATE_TILE, dx: 3, dy: 2 }
+    ]
+  }
+
+  if (kind === 'hut') {
+    return [
+      { tileId: ORANGE_ROOF[0], dx: 0, dy: 0 },
+      { tileId: ORANGE_GABLE, dx: 1, dy: 0 },
+      { tileId: ORANGE_ROOF[2], dx: 2, dy: 0 },
+      { tileId: WOOD_WALL_LEFT, dx: 0, dy: 1 },
+      { tileId: WOOD_WINDOW, dx: 1, dy: 1 },
+      { tileId: WOOD_WALL_RIGHT, dx: 2, dy: 1 },
+      { tileId: WOOD_WALL_LEFT, dx: 0, dy: 2 },
+      { tileId: WOOD_DOOR, dx: 1, dy: 2 },
+      { tileId: WOOD_WALL_RIGHT, dx: 2, dy: 2 }
+    ]
+  }
+
+  return [
+    { tileId: BLUE_ROOF[0], dx: 0, dy: 0 },
+    { tileId: BLUE_GABLE, dx: 1, dy: 0 },
+    { tileId: BLUE_ROOF[2], dx: 2, dy: 0 },
+    { tileId: STONE_WALL_LEFT, dx: 0, dy: 1 },
+    { tileId: STONE_WINDOW, dx: 1, dy: 1 },
+    { tileId: STONE_WALL_RIGHT, dx: 2, dy: 1 },
+    { tileId: STONE_WALL_LEFT, dx: 0, dy: 2 },
+    { tileId: STONE_DOOR, dx: 1, dy: 2 },
+    { tileId: STONE_WALL_RIGHT, dx: 2, dy: 2 },
+    { tileId: TARGET_TILE, dx: 3, dy: 0 },
+    { tileId: WELL_TILE, dx: 3, dy: 2 },
+    { tileId: SIGN_TILE, dx: -1, dy: 2 }
+  ]
 }
 
 function renderBuildingSprite(
@@ -125,57 +190,9 @@ function renderBuildingSprite(
 ) {
   const originX = (building.position.x - startX - 1) * tileSize
   const originY = (building.position.y - startY - 2) * tileSize
-
-  if (building.kind === 'campfire') {
-    addTileSprite(container, tinyTownTilePath(CAMPFIRE_TILE), (building.position.x - startX) * tileSize, (building.position.y - startY) * tileSize, tileSize)
-    return
-  }
-
-  if (building.kind === 'storage') {
-    ;[
-      [BLUE_ROOF[0], 0, 0],
-      [BLUE_GABLE, 1, 0],
-      [BLUE_ROOF[2], 2, 0],
-      [STONE_WALL_LEFT, 0, 1],
-      [STONE_WINDOW, 1, 1],
-      [STONE_WALL_RIGHT, 2, 1],
-      [STONE_WALL_LEFT, 0, 2],
-      [STONE_DOOR, 1, 2],
-      [STONE_WALL_RIGHT, 2, 2],
-      [CRATE_TILE, 3, 2]
-    ].forEach(([tileId, dx, dy]) => addTileSprite(container, tinyTownTilePath(tileId as number), originX + (dx as number) * tileSize, originY + (dy as number) * tileSize, tileSize))
-    return
-  }
-
-  if (building.kind === 'hut') {
-    ;[
-      [ORANGE_ROOF[0], 0, 0],
-      [ORANGE_GABLE, 1, 0],
-      [ORANGE_ROOF[2], 2, 0],
-      [WOOD_WALL_LEFT, 0, 1],
-      [WOOD_WINDOW, 1, 1],
-      [WOOD_WALL_RIGHT, 2, 1],
-      [WOOD_WALL_LEFT, 0, 2],
-      [WOOD_DOOR, 1, 2],
-      [WOOD_WALL_RIGHT, 2, 2]
-    ].forEach(([tileId, dx, dy]) => addTileSprite(container, tinyTownTilePath(tileId as number), originX + (dx as number) * tileSize, originY + (dy as number) * tileSize, tileSize))
-    return
-  }
-
-  ;[
-    [BLUE_ROOF[0], 0, 0],
-    [BLUE_GABLE, 1, 0],
-    [BLUE_ROOF[2], 2, 0],
-    [STONE_WALL_LEFT, 0, 1],
-    [STONE_WINDOW, 1, 1],
-    [STONE_WALL_RIGHT, 2, 1],
-    [STONE_WALL_LEFT, 0, 2],
-    [STONE_DOOR, 1, 2],
-    [STONE_WALL_RIGHT, 2, 2],
-    [TARGET_TILE, 3, 0],
-    [WELL_TILE, 3, 2],
-    [SIGN_TILE, -1, 2]
-  ].forEach(([tileId, dx, dy]) => addTileSprite(container, tinyTownTilePath(tileId as number), originX + (dx as number) * tileSize, originY + (dy as number) * tileSize, tileSize))
+  getBuildingTilePlacements(building.kind).forEach(({ tileId, dx, dy }) => {
+    addTileSprite(container, tinyTownTilePath(tileId), originX + dx * tileSize, originY + dy * tileSize, tileSize)
+  })
 }
 
 function terrainAsset(tile: TerrainType, worldX: number, worldY: number): string | null {
@@ -481,7 +498,7 @@ export function PixiWorld({ save, compact, onMovePlayer }: Props) {
     return (
       <div className="relative h-full min-h-[320px] w-full overflow-hidden rounded-2xl">
         <div className="absolute left-3 top-3 z-30 rounded-full border border-amber-400/30 bg-amber-400/10 px-3 py-1 text-xs font-medium text-amber-200">
-          渲染后备模式
+          Tiny Town 精灵渲染
         </div>
         <DomWorldFallback save={save} compact={compact} onMovePlayer={onMovePlayer} {...fallbackView} />
       </div>
@@ -496,7 +513,7 @@ export function PixiWorld({ save, compact, onMovePlayer }: Props) {
         </div>
       ) : (
         <div className="absolute left-3 top-3 z-30 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-xs font-medium text-emerald-200">
-          Pixi 精灵渲染
+          Pixi / Tiny Town 精灵渲染
         </div>
       )}
       <div
@@ -530,6 +547,22 @@ function renderTownDecorations(container: Container, save: WorldSave, startX: nu
   })
 }
 
+function getTownDecorationPlacements(save: WorldSave, startX: number, startY: number): TilePlacement[] {
+  const townX = save.world.townCenter.x - startX
+  const townY = save.world.townCenter.y - startY
+  return [
+    { tileId: FENCE_LEFT, dx: townX - 4, dy: townY + 4 },
+    { tileId: FENCE_MID, dx: townX - 3, dy: townY + 4 },
+    { tileId: FENCE_MID, dx: townX - 2, dy: townY + 4 },
+    { tileId: FENCE_RIGHT, dx: townX - 1, dy: townY + 4 },
+    { tileId: FENCE_LEFT, dx: townX + 2, dy: townY - 2 },
+    { tileId: FENCE_MID, dx: townX + 3, dy: townY - 2 },
+    { tileId: FENCE_RIGHT, dx: townX + 4, dy: townY - 2 },
+    { tileId: FENCE_POST, dx: townX - 4, dy: townY - 3 },
+    { tileId: ROPE_TILE, dx: townX + 5, dy: townY + 3 }
+  ]
+}
+
 function DomWorldFallback({
   save,
   compact,
@@ -548,6 +581,28 @@ function DomWorldFallback({
   startY: number
   admin: WorldSave['world']['agents'][number]
 }) {
+  const renderedBuildings = save.world.buildings.flatMap((building) => {
+    if (
+      building.position.x < startX - 2 ||
+      building.position.x >= startX + visibleCols + 2 ||
+      building.position.y < startY - 3 ||
+      building.position.y >= startY + visibleRows + 2
+    ) {
+      return []
+    }
+
+    const originX = building.position.x - startX - 1
+    const originY = building.position.y - startY - 2
+    return getBuildingTilePlacements(building.kind).map(({ tileId, dx, dy }) => ({
+      key: `${building.id}-${tileId}-${dx}-${dy}`,
+      tileId,
+      x: originX + dx,
+      y: originY + dy
+    }))
+  })
+
+  const decorTiles = getTownDecorationPlacements(save, startX, startY)
+
   return (
     <div
       className="relative h-full min-h-[320px] w-full overflow-hidden rounded-2xl border border-cyan-400/15 bg-[#081225]"
@@ -571,17 +626,25 @@ function DomWorldFallback({
       >
         {Array.from({ length: visibleRows }, (_row, y) =>
           Array.from({ length: visibleCols }, (_col, x) => {
-            const tile = save.world.terrain[startY + y]?.[startX + x] ?? 'grass'
+            const worldX = startX + x
+            const worldY = startY + y
+            const tile = save.world.terrain[worldY]?.[worldX] ?? 'grass'
+            const assetPath = terrainAsset(tile, worldX, worldY)
             return (
               <div
-                key={`${x}-${y}`}
+                key={`${worldX}-${worldY}`}
                 style={{
                   width: tileSize,
                   height: tileSize,
-                  background: `#${(TILE_COLORS[tile] ?? 0x1e293b).toString(16).padStart(6, '0')}`,
-                  border: '1px solid rgba(15, 23, 42, 0.12)'
+                  position: 'relative',
+                  background: assetPath ? 'transparent' : `#${(TILE_COLORS[tile] ?? 0x1e293b).toString(16).padStart(6, '0')}`
                 }}
-              />
+              >
+                {assetPath ? <img src={assetPath} alt="" className="pixelated h-full w-full" draggable={false} /> : null}
+                {shouldRenderPathTile(worldX, worldY, save.world.townCenter, save.world.buildings) ? (
+                  <img src={tinyTownTilePath(PATH_TILE)} alt="" className="pixelated absolute inset-0 h-full w-full" draggable={false} />
+                ) : null}
+              </div>
             )
           })
         )}
@@ -600,57 +663,52 @@ function DomWorldFallback({
         const left = (resourceNode.position.x - startX) * tileSize
         const top = (resourceNode.position.y - startY) * tileSize
         return (
-          <div
+          <img
             key={resourceNode.id}
-            className="absolute rounded-full"
+            src={resourceNode.kind === 'tree' ? pickVariant(TREE_VARIANTS, resourceNode.position.x, resourceNode.position.y) : tinyTownTilePath(126)}
+            alt=""
+            className="absolute pixelated"
             style={{
-              left: left + tileSize * 0.25,
-              top: top + tileSize * 0.25,
-              width: tileSize * 0.5,
-              height: tileSize * 0.5,
-              background: resourceNode.kind === 'tree' ? '#22c55e' : '#94a3b8',
-              boxShadow: '0 0 0 1px rgba(255,255,255,0.08)'
+              left,
+              top,
+              width: tileSize,
+              height: tileSize
             }}
           />
         )
       })}
 
-      {save.world.buildings.map((building) => {
-        if (
-          building.position.x < startX ||
-          building.position.x >= startX + visibleCols ||
-          building.position.y < startY ||
-          building.position.y >= startY + visibleRows
-        ) {
-          return null
-        }
+      {renderedBuildings.map((tile) => (
+        <img
+          key={tile.key}
+          src={tinyTownTilePath(tile.tileId)}
+          alt=""
+          className="absolute pixelated"
+          style={{
+            left: tile.x * tileSize,
+            top: tile.y * tileSize,
+            width: tileSize,
+            height: tileSize
+          }}
+        />
+      ))}
 
-        const left = (building.position.x - startX) * tileSize
-        const top = (building.position.y - startY) * tileSize
-        const color =
-          building.kind === 'campfire'
-            ? '#f97316'
-            : building.kind === 'storage'
-              ? '#facc15'
-              : building.kind === 'hut'
-                ? '#fb7185'
-                : '#22d3ee'
-
-        return (
-          <div
-            key={building.id}
-            className="absolute rounded-md"
+      {decorTiles.map((tile, index) =>
+        tile.dx < -2 || tile.dy < -2 ? null : (
+          <img
+            key={`decor-${index}-${tile.tileId}`}
+            src={tinyTownTilePath(tile.tileId)}
+            alt=""
+            className="absolute pixelated"
             style={{
-              left: left + 1,
-              top: top + 1,
-              width: tileSize - 2,
-              height: tileSize - 2,
-              background: color,
-              boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.08)'
+              left: tile.dx * tileSize,
+              top: tile.dy * tileSize,
+              width: tileSize,
+              height: tileSize
             }}
           />
         )
-      })}
+      )}
 
       {save.world.agents.map((agent) => {
         if (
@@ -681,7 +739,7 @@ function DomWorldFallback({
             <img
               src={VILLAGER_SPRITE}
               alt={agent.name}
-              className="absolute pixelated"
+              className="absolute pixelated sprite-bob"
               style={{
                 left,
                 top: top - tileSize * 0.12,
@@ -711,7 +769,7 @@ function DomWorldFallback({
           <img
             src={PLAYER_SPRITE}
             alt={save.world.player.name}
-            className="absolute pixelated"
+            className="absolute pixelated sprite-bob"
             style={{
               left: (save.world.player.position.x - startX) * tileSize,
               top: (save.world.player.position.y - startY) * tileSize - tileSize * 0.12,

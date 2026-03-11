@@ -440,6 +440,45 @@ export function createNewWorldSave(draft: SaveDraft): WorldSave {
   const meta = createMeta(draft, seed)
   const admin = createAgent('Admin', draft.species, 'admin', townCenter)
   addMemory(admin, defaultAuthorityLimits, 'plan', '我的默认目标是建设城镇并发展更多小 Agent。')
+  const starterNpc = createAgent('Settler 1', 'cat', 'npc', { x: townCenter.x + 1, y: townCenter.y + 1 })
+  starterNpc.currentTask = '在小镇里巡逻并协助管理员'
+  starterNpc.plan = '维护已有定居点，等待更多建设任务'
+  const starterBuildings: BuildingState[] = [
+    {
+      id: createId('building'),
+      kind: 'campfire',
+      scriptId: 'settlement-structure',
+      position: { x: townCenter.x, y: townCenter.y },
+      progress: 1,
+      complete: true
+    },
+    {
+      id: createId('building'),
+      kind: 'storage',
+      scriptId: 'settlement-structure',
+      position: { x: townCenter.x + 3, y: townCenter.y },
+      progress: 1,
+      complete: true
+    },
+    {
+      id: createId('building'),
+      kind: 'hut',
+      scriptId: 'settlement-structure',
+      position: { x: townCenter.x - 3, y: townCenter.y + 2 },
+      progress: 1,
+      complete: true
+    },
+    {
+      id: createId('building'),
+      kind: 'hut',
+      scriptId: 'settlement-structure',
+      position: { x: townCenter.x + 4, y: townCenter.y + 2 },
+      progress: 1,
+      complete: true
+    }
+  ]
+  meta.agentCount = 2
+  meta.buildingCount = starterBuildings.length
 
   return {
     version: WORLD_VERSION,
@@ -456,18 +495,18 @@ export function createNewWorldSave(draft: SaveDraft): WorldSave {
       townCenter,
       player: {
         name: 'God Avatar',
-        position: { x: townCenter.x, y: townCenter.y + 1 }
+        position: { x: townCenter.x + 1, y: townCenter.y + 2 }
       },
       stockpile: {
-        wood: 0,
-        stone: 0
+        wood: 6,
+        stone: 2
       },
       terrain,
       resources,
-      buildings: [],
-      agents: [admin],
+      buildings: starterBuildings,
+      agents: [admin, starterNpc],
       chatLog: [
-        createSystemMessage('世界启动：Admin Agent 会优先建设城镇、积累资源，并在预算范围内培育更多小 Agent。')
+        createSystemMessage('世界启动：一个基础 Tiny Town 定居点已建立，Admin Agent 会继续扩建城镇并培育更多小 Agent。')
       ],
       tokenLedger: [],
       scriptProfiles: [createDefaultScriptProfile(admin.id)],

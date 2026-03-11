@@ -884,13 +884,14 @@ function WorldWorkspace({
           <div className="pointer-events-none absolute bottom-4 left-4 right-4 flex justify-start">
             {renderMode === '2d' ? (
               canTalkToAdmin ? (
-                <div className="pointer-events-auto panel w-full max-w-xl rounded-3xl p-4">
-                  <div className="mb-2 text-sm font-semibold text-white">你已靠近 Admin Agent，可以直接交谈</div>
-                  <div className="mb-3 text-xs text-slate-300">点击地图或用 WASD / 方向键移动；靠近管理员时对话框会自动可用。</div>
+                <div className="pointer-events-auto panel w-full max-w-md rounded-3xl p-4">
+                  <div className="mb-2 text-sm font-semibold text-white">已靠近 Admin Agent</div>
+                  <div className="mb-3 text-xs text-slate-300">点击地图或用 WASD / 方向键移动。这里只在靠近管理员时出现。</div>
                   <Textarea
                     label="对管理员说"
                     value={chatInput}
                     onValueChange={setChatInput}
+                    minRows={2}
                     placeholder="例如：先扩张木材，再建两间小屋。"
                   />
                   <div className="mt-3 flex justify-end">
