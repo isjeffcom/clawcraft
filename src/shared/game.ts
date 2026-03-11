@@ -495,7 +495,7 @@ export function createNewWorldSave(draft: SaveDraft): WorldSave {
       townCenter,
       player: {
         name: 'God Avatar',
-        position: { x: townCenter.x + 1, y: townCenter.y + 2 }
+        position: { x: townCenter.x + 1, y: townCenter.y + 1 }
       },
       stockpile: {
         wood: 6,
@@ -765,7 +765,9 @@ export function migrateWorldSave(raw: unknown): WorldSave {
       townCenter: candidate.world?.townCenter ?? { x: 32, y: 32 },
       player: candidate.world?.player ?? {
         name: 'God Avatar',
-        position: candidate.world?.townCenter ?? { x: 32, y: 33 }
+        position: candidate.world?.townCenter
+          ? { x: candidate.world.townCenter.x + 1, y: candidate.world.townCenter.y + 1 }
+          : { x: 33, y: 33 }
       },
       stockpile: candidate.world?.stockpile ?? { wood: 0, stone: 0 },
       terrain: candidate.world?.terrain ?? [],

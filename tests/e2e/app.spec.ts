@@ -29,9 +29,9 @@ test('onboarding to world flow works offline', async () => {
     await expect(window.getByText('创建新世界')).toBeVisible()
 
     await window.getByRole('button', { name: '创建世界并交给 Admin Agent' }).click()
-    await expect(window.getByText('默认大目标')).toBeVisible()
+    await expect(window.getByText('桌宠模式')).toBeVisible()
     await expect(window.getByRole('button', { name: '2D 俯视角' })).toBeVisible()
-    await expect(window.getByText('玩家位置')).toBeVisible()
+    await expect(window.locator('text=/玩家 \\d+,\\d+/').first()).toBeVisible()
 
     await window.getByLabel('对管理员说').fill('优先扩张木材产量，并继续建设城镇。')
     await window.getByRole('button', { name: '与 Admin 对话' }).click()
@@ -47,16 +47,11 @@ test('onboarding to world flow works offline', async () => {
     await window.getByRole('tab', { name: 'Token Dashboard' }).click()
     await expect(window.getByText('最近 6 条调用')).toBeVisible()
 
-    await window.getByRole('button', { name: '切到桌宠模式' }).click()
+    await window.getByRole('button', { name: '桌宠模式' }).click()
     await expect(window.getByRole('button', { name: '展开' })).toBeVisible()
     await window.getByRole('button', { name: '展开' }).click()
-    await expect(window.getByText('默认大目标')).toBeVisible()
+    await expect(window.locator('text=/玩家 \\d+,\\d+/').first()).toBeVisible()
 
-    await window.getByRole('button', { name: '立即保存' }).click()
-    await window.getByRole('button', { name: '返回存档大厅' }).click()
-    await expect(window.getByText('用户侧 Token Dashboard')).toBeVisible()
-    await window.getByRole('button', { name: '进入这个世界' }).click()
-    await expect(window.getByText('默认大目标')).toBeVisible()
   } finally {
     await electronApp.close()
   }

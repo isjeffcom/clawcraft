@@ -477,6 +477,7 @@ export function PixiWorld({ save, compact, onMovePlayer }: Props) {
     })
     info.x = 12
     info.y = 10
+    info.eventMode = 'none'
     hud.addChild(info)
 
     if (!compact) {
@@ -490,6 +491,7 @@ export function PixiWorld({ save, compact, onMovePlayer }: Props) {
       })
       tip.x = 12
       tip.y = 30
+      tip.eventMode = 'none'
       hud.addChild(tip)
     }
   }
@@ -780,7 +782,7 @@ function DomWorldFallback({
         </div>
       ) : null}
 
-      <div className="absolute left-3 right-3 top-10 z-20 rounded-2xl bg-slate-950/55 px-3 py-2 text-xs text-slate-100">
+      <div className="pointer-events-none absolute left-3 right-3 top-10 z-20 rounded-2xl bg-slate-950/55 px-3 py-2 text-xs text-slate-100">
         {compact
           ? `Admin：${admin.currentTask}`
           : `${save.meta.name}｜库存 木:${save.world.stockpile.wood} 石:${save.world.stockpile.stone}｜玩家 ${save.world.player.position.x},${save.world.player.position.y}`}

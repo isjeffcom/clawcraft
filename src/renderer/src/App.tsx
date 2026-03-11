@@ -829,59 +829,104 @@ function WorldWorkspace({
   }
 
   return (
-    <div className="grid flex-1 gap-4 overflow-hidden p-4 xl:grid-cols-[minmax(0,1.8fr)_420px]">
-      <div className="panel flex min-h-0 flex-col rounded-[2rem] p-4">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-2xl font-semibold text-white">{save.meta.name}</h2>
-            <p className="mt-1 text-sm text-slate-300">{getWorldSummary(save)}</p>
+    <div className="relative flex-1 overflow-hidden p-4">
+      <div className="relative h-full overflow-hidden rounded-[2rem] border border-white/10 bg-slate-950/40">
+        {renderMode === '2d' ? (
+          <PixiWorld save={save} compact={false} onMovePlayer={movePlayerTo} />
+        ) : (
+          <div className="grid h-full place-items-center rounded-[1.2rem] bg-slate-950/50">
+            <div className="max-w-lg text-center">
+              <div className="text-lg font-semibold text-white">3D 世界尚未开放</div>
+              <p className="mt-3 text-sm text-slate-300">
+                当前版本默认以 2D 俯视角保证桌宠观察体验。世界逻辑与渲染已分层，后续可以接入 3D renderer adapter。
+              </p>
+            </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button variant="flat" onPress={() => void persist(save)}>
-              立即保存
-            </Button>
-            <Button variant="flat" onPress={() => void onCompactChange(true)}>
-              切到桌宠模式
-            </Button>
-            <Button color="warning" variant="flat" onPress={() => void onBack()}>
-              返回存档大厅
-            </Button>
-          </div>
-        </div>
+        )}
 
-        <div className="mb-4 stat-grid">
-          <Metric label="默认大目标" value="建设城镇 / 发展小 Agent" />
-          <Metric label="当前焦点" value={focusLabels[save.world.focus]} />
-          <Metric label="城镇库存" value={`木 ${save.world.stockpile.wood} / 石 ${save.world.stockpile.stone}`} />
-          <Metric label="实时任务" value={admin.currentTask} />
-          <Metric label="玩家位置" value={`${save.world.player.position.x}, ${save.world.player.position.y}`} />
-          <Metric label="玩家操作" value="WASD / 方向键移动观察者" />
-        </div>
-
-        <div className="mb-4 flex items-center gap-2">
-          <Button size="sm" color={renderMode === '2d' ? 'primary' : 'default'} variant="flat" onPress={() => setRenderMode('2d')}>
-            2D 俯视角
-          </Button>
-          <Button size="sm" color={renderMode === '3d' ? 'warning' : 'default'} variant="flat" onPress={() => setRenderMode('3d')}>
-            3D（占位）
-          </Button>
-        </div>
-
-        <div className="relative min-h-0 flex-1 rounded-[1.5rem] border border-white/10 bg-slate-950/40 p-2">
-          {renderMode === '2d' ? (
-            <PixiWorld save={save} compact={false} onMovePlayer={movePlayerTo} />
-          ) : (
-            <div className="grid h-full place-items-center rounded-[1.2rem] bg-slate-950/50">
-              <div className="max-w-lg text-center">
-                <div className="text-lg font-semibold text-white">3D 世界尚未开放</div>
-                <p className="mt-3 text-sm text-slate-300">
-                  当前版本默认以 2D 俯视角保证桌宠观察体验。世界逻辑与渲染已分层，后续可以接入 3D renderer adapter。
-                </p>
+        <div className="pointer-events-none absolute inset-0">
+          <div className="pointer-events-auto absolute left-4 top-4 panel rounded-3xl px-5 py-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <div>
+                <h2 className="text-2xl font-semibold text-white">{save.meta.name}</h2>
+                <p className="mt-1 text-sm text-slate-300">{getWorldSummary(save)}</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button variant="flat" onPress={() => void persist(save)}>
+                  保存
+                </Button>
+                <Button variant="flat" onPress={() => void onCompactChange(true)}>
+                  桌宠模式
+                </Button>
+                <Button color="warning" variant="flat" onPress={() => void onBack()}>
+                  退出世界
+                </Button>
               </div>
             </div>
-          )}
 
-          <div className="pointer-events-none absolute bottom-4 left-4 right-4 flex justify-start">
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button size="sm" color={renderMode === '2d' ? 'primary' : 'default'} variant="flat" onPress={() => setRenderMode('2d')}>
+                2D 俯视角
+              </Button>
+              <Button size="sm" color={renderMode === '3d' ? 'warning' : 'default'} variant="flat" onPress={() => setRenderMode('3d')}>
+                3D（占位）
+              </Button>
+              <Chip color="primary" variant="flat">
+                玩家 {save.world.player.position.x},{save.world.player.position.y}
+              </Chip>
+              <Chip color="success" variant="flat">
+                焦点：{focusLabels[save.world.focus]}
+              </Chip>
+              <Chip color="warning" variant="flat">
+                库存 木 {save.world.stockpile.wood} / 石 {save.world.stockpile.stone}
+              </Chip>
+              <Chip color="secondary" variant="flat">
+                操作：WASD / 点击地图
+              </Chip>
+            </div>
+          </div>
+
+          <div className="pointer-events-auto absolute right-4 top-4 bottom-4 w-[360px]">
+            <Card className="panel h-full rounded-[2rem]">
+              <CardBody className="h-full">
+                <Tabs aria-label="World panels" className="h-full min-h-0">
+                  <Tab key="overview" title="概览">
+                    <OverviewPanel save={save} />
+                  </Tab>
+                  <Tab key="dialogue-log" title="对话记录">
+                    <div className="max-h-[520px] overflow-auto rounded-2xl border border-white/10 bg-slate-950/30 p-3">
+                      <div className="space-y-3">
+                        {save.world.chatLog.slice(-16).map((message) => (
+                          <div key={message.id} className="rounded-2xl border border-white/8 bg-white/5 p-3 text-sm">
+                            <div className="mb-1 text-xs uppercase tracking-[0.2em] text-slate-400">{message.role}</div>
+                            <div className="whitespace-pre-wrap text-slate-200">{message.content}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </Tab>
+                  <Tab key="token" title="Token Dashboard">
+                    <TokenDashboard save={save} />
+                  </Tab>
+                  <Tab key="asset-lab" title="素材工坊">
+                    <AssetLabPanel
+                      prompt={assetPrompt}
+                      onPromptChange={setAssetPrompt}
+                      onGenerate={() => void generatePixelAsset()}
+                      onRefreshBalance={() => void refreshPixelLabBalance()}
+                      loading={assetLoading}
+                      error={assetError}
+                      preview={assetPreview}
+                      savedPath={assetSavedPath}
+                      balance={pixelLabBalance}
+                    />
+                  </Tab>
+                </Tabs>
+              </CardBody>
+            </Card>
+          </div>
+
+          <div className="pointer-events-none absolute bottom-4 left-4 right-[392px] flex justify-start">
             {renderMode === '2d' ? (
               canTalkToAdmin ? (
                 <div className="pointer-events-auto panel w-full max-w-md rounded-3xl p-4">
@@ -908,46 +953,6 @@ function WorldWorkspace({
             ) : null}
           </div>
         </div>
-      </div>
-
-      <div className="grid min-h-0 gap-4">
-        <Card className="panel rounded-[2rem]">
-          <CardBody>
-            <Tabs aria-label="World panels" className="min-h-0">
-              <Tab key="overview" title="概览">
-                <OverviewPanel save={save} />
-              </Tab>
-              <Tab key="dialogue-log" title="对话记录">
-                <div className="max-h-[520px] overflow-auto rounded-2xl border border-white/10 bg-slate-950/30 p-3">
-                  <div className="space-y-3">
-                    {save.world.chatLog.slice(-16).map((message) => (
-                      <div key={message.id} className="rounded-2xl border border-white/8 bg-white/5 p-3 text-sm">
-                        <div className="mb-1 text-xs uppercase tracking-[0.2em] text-slate-400">{message.role}</div>
-                        <div className="whitespace-pre-wrap text-slate-200">{message.content}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </Tab>
-              <Tab key="token" title="Token Dashboard">
-                <TokenDashboard save={save} />
-              </Tab>
-              <Tab key="asset-lab" title="素材工坊">
-                <AssetLabPanel
-                  prompt={assetPrompt}
-                  onPromptChange={setAssetPrompt}
-                  onGenerate={() => void generatePixelAsset()}
-                  onRefreshBalance={() => void refreshPixelLabBalance()}
-                  loading={assetLoading}
-                  error={assetError}
-                  preview={assetPreview}
-                  savedPath={assetSavedPath}
-                  balance={pixelLabBalance}
-                />
-              </Tab>
-            </Tabs>
-          </CardBody>
-        </Card>
       </div>
     </div>
   )
