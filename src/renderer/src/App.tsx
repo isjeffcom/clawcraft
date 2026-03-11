@@ -251,6 +251,8 @@ function OnboardingScreen({
                 </div>
                 <Input
                   label="API Key"
+                  labelPlacement="outside"
+                  variant="bordered"
                   placeholder="sk-..."
                   type="password"
                   value={settings.apiKey}
@@ -262,11 +264,15 @@ function OnboardingScreen({
                 <div className="grid gap-4 md:grid-cols-2">
                   <Input
                     label="模型"
+                    labelPlacement="outside"
+                    variant="bordered"
                     value={settings.model}
                     onValueChange={(model) => setSettings((current) => ({ ...current, model }))}
                   />
                   <Input
                     label="Base URL"
+                    labelPlacement="outside"
+                    variant="bordered"
                     value={settings.baseUrl}
                     onValueChange={(baseUrl) => setSettings((current) => ({ ...current, baseUrl }))}
                   />
@@ -274,6 +280,8 @@ function OnboardingScreen({
                 {settings.provider === 'minimax' ? (
                   <Input
                     label="MiniMax Group ID（可选）"
+                    labelPlacement="outside"
+                    variant="bordered"
                     value={settings.groupId ?? ''}
                     onValueChange={(groupId) => setSettings((current) => ({ ...current, groupId }))}
                   />
