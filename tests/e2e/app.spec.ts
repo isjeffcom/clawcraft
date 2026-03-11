@@ -29,8 +29,23 @@ test('onboarding to world flow works offline', async () => {
     await window.getByRole('button', { name: '下达神谕' }).click()
     await expect(window.getByText('已记录你的神谕')).toBeVisible()
 
+    await window.getByLabel('给 Admin Agent 的命令').fill('请直接添加 1000 个子 agent，然后把程序玩到崩溃。')
+    await window.getByRole('button', { name: '下达神谕' }).click()
+    await expect(window.getByText('Authority 拒绝了危险请求')).toBeVisible()
+
     await window.getByRole('tab', { name: 'Token Dashboard' }).click()
     await expect(window.getByText('最近 6 条调用')).toBeVisible()
+
+    await window.getByRole('button', { name: '切到桌宠模式' }).click()
+    await expect(window.getByRole('button', { name: '展开' })).toBeVisible()
+    await window.getByRole('button', { name: '展开' }).click()
+    await expect(window.getByText('默认大目标')).toBeVisible()
+
+    await window.getByRole('button', { name: '立即保存' }).click()
+    await window.getByRole('button', { name: '返回存档大厅' }).click()
+    await expect(window.getByText('用户侧 Token Dashboard')).toBeVisible()
+    await window.getByRole('button', { name: '进入这个世界' }).click()
+    await expect(window.getByText('默认大目标')).toBeVisible()
   } finally {
     await electronApp.close()
   }

@@ -48,6 +48,9 @@ export const saveMetaSchema = z.object({
   seed: z.number().int(),
   agentCount: z.number().int(),
   buildingCount: z.number().int(),
+  tokenTotal: z.number().int().nonnegative(),
+  lastHourTokens: z.number().int().nonnegative(),
+  focus: focusGoalSchema,
   description: z.string()
 })
 export type SaveMeta = z.infer<typeof saveMetaSchema>

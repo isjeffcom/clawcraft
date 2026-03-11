@@ -3,7 +3,9 @@ import { worldSaveSchema } from '../../src/shared/contracts'
 import {
   createEstimatedUsage,
   createNewWorldSave,
+  deriveSaveMeta,
   evaluateAuthority,
+  summarizeTokenTrend,
   summarizeTokenUsage,
   tickWorld
 } from '../../src/shared/game'
@@ -56,5 +58,20 @@ describe('shared game simulation', () => {
     expect(summary.totalTokens).toBe(first.totalTokens + second.totalTokens)
     expect(summary.byProvider['offline-fallback']).toBe(first.totalTokens)
     expect(summary.byType.summary).toBe(second.totalTokens)
+  })
+
+  it('derives save metadata and token trends for dashboards', () => {
+    const save = createNewWorldSave({
+      name: 'Dashboard World',
+      species: 'sheep',
+      seed: 51
+    })
+    save.world.tokenLedger.push(createEstimatedUsage('openai', save.meta.id, save.world.agents[0]!.id, 'chat', 'gpt', 'hello', 'reply'))
+    const meta = deriveSaveMeta(save)
+    const trend = summarizeTokenTrend(save.world.tokenLedger, 10, 4, Date.now())
+
+    expect(meta.tokenTotal).toBeGreaterThan(0)
+    expect(meta.focus).toBe(save.world.focus)
+    expect(trend).toHaveLength(4)
   })
 })

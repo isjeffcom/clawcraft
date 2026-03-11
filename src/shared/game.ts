@@ -351,6 +351,9 @@ function createMeta(draft: SaveDraft, seed: number): SaveMeta {
     seed,
     agentCount: 1,
     buildingCount: 0,
+    tokenTotal: 0,
+    lastHourTokens: 0,
+    focus: 'expand',
     description: '一个从荒野中自我生长的俯视角自治世界。'
   }
 }
@@ -576,4 +579,34 @@ export function summarizeTokenUsage(records: TokenUsageRecord[], now = Date.now(
       lastHour: 0
     }
   )
+}
+
+export function summarizeTokenTrend(records: TokenUsageRecord[], bucketMinutes = 10, bucketCount = 6, now = Date.now()) {
+  const bucketSize = bucketMinutes * 60 * 1000
+  return Array.from({ length: bucketCount }, (_item, index) => {
+    const bucketStart = now - bucketSize * (bucketCount - index)
+    const bucketEnd = bucketStart + bucketSize
+    const total = records
+      .filter((record) => record.timestamp >= bucketStart && record.timestamp < bucketEnd)
+      .reduce((sum, record) => sum + record.totalTokens, 0)
+
+    return {
+      label: `${new Date(bucketStart).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
+      total
+    }
+  })
+}
+
+export function deriveSaveMeta(save: WorldSave, now = Date.now()): SaveMeta {
+  const tokenSummary = summarizeTokenUsage(save.world.tokenLedger, now)
+  return {
+    ...save.meta,
+    updatedAt: now,
+    lastPlayedAt: now,
+    agentCount: save.world.agents.length,
+    buildingCount: save.world.buildings.length,
+    tokenTotal: tokenSummary.totalTokens,
+    lastHourTokens: tokenSummary.lastHour,
+    focus: save.world.focus
+  }
 }

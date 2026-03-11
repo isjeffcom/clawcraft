@@ -23,6 +23,7 @@ import {
   evaluateAuthority,
   getWorldSummary,
   parseFocusFromMessage,
+  summarizeTokenTrend,
   summarizeTokenUsage
 } from '@shared/game'
 import { PixiWorld } from './game/PixiWorld'
@@ -338,6 +339,7 @@ function SaveLobby({
           <h2 className="text-2xl font-semibold text-white">已有存档</h2>
           <p className="mt-2 text-sm text-slate-300">所有世界都是 JSON 存档，可独立恢复。</p>
         </div>
+        <GlobalDashboard saves={saves} />
         <div className="grid gap-4 xl:grid-cols-2">
           {saves.length === 0 ? (
             <Card className="panel rounded-3xl">
@@ -359,8 +361,10 @@ function SaveLobby({
                 <div className="stat-grid text-sm">
                   <Metric label="Agent" value={String(save.agentCount)} />
                   <Metric label="建筑" value={String(save.buildingCount)} />
+                  <Metric label="当前焦点" value={focusLabels[save.focus]} />
+                  <Metric label="Token 总量" value={save.tokenTotal.toLocaleString()} />
                   <Metric label="种子" value={String(save.seed)} />
-                  <Metric label="最近游玩" value={new Date(save.lastPlayedAt).toLocaleString()} />
+                  <Metric label="最近 1 小时 Token" value={save.lastHourTokens.toLocaleString()} />
                 </div>
                 <Button color="primary" variant="flat" onPress={() => void onOpen(save.id)}>
                   进入这个世界
@@ -371,6 +375,52 @@ function SaveLobby({
         </div>
       </div>
     </div>
+  )
+}
+
+function GlobalDashboard({ saves }: { saves: SaveMeta[] }) {
+  const sortedSaves = saves.slice().sort((a, b) => b.tokenTotal - a.tokenTotal)
+  const totalTokens = saves.reduce((sum, save) => sum + save.tokenTotal, 0)
+  const totalLastHour = saves.reduce((sum, save) => sum + save.lastHourTokens, 0)
+
+  return (
+    <Card className="panel rounded-3xl">
+      <CardBody className="gap-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-semibold text-white">用户侧 Token Dashboard</h3>
+            <p className="mt-1 text-sm text-slate-300">按世界汇总所有存档的 token 消耗，方便你总览每个世界的成本。</p>
+          </div>
+          <Chip color="primary" variant="flat">
+            {saves.length} Worlds
+          </Chip>
+        </div>
+        <div className="grid gap-3 md:grid-cols-3">
+          <Metric label="所有世界总 Token" value={totalTokens.toLocaleString()} />
+          <Metric label="过去 1 小时 Token" value={totalLastHour.toLocaleString()} />
+          <Metric label="最高成本世界" value={sortedSaves[0]?.name ?? '暂无'} />
+        </div>
+        <div className="space-y-3">
+          {saves.length === 0 ? <div className="text-sm text-slate-400">创建世界后，这里会显示按世界聚合的 token 统计。</div> : null}
+          {sortedSaves.map((save) => (
+              <div key={save.id} className="rounded-2xl border border-white/10 bg-slate-950/30 p-3">
+                <div className="flex items-center justify-between gap-3 text-sm">
+                  <span className="font-medium text-white">{save.name}</span>
+                  <span className="text-slate-300">{save.tokenTotal.toLocaleString()} tokens</span>
+                </div>
+                <div className="mt-2 token-bar">
+                  <span style={{ width: `${totalTokens === 0 ? 0 : (save.tokenTotal / totalTokens) * 100}%` }} />
+                </div>
+                <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-400">
+                  <span>焦点：{focusLabels[save.focus]}</span>
+                  <span>近 1 小时：{save.lastHourTokens.toLocaleString()}</span>
+                  <span>Agent：{save.agentCount}</span>
+                </div>
+              </div>
+            ))}
+        </div>
+      </CardBody>
+    </Card>
   )
 }
 
@@ -605,6 +655,7 @@ function OverviewPanel({ save }: { save: WorldSave }) {
 
 function TokenDashboard({ save }: { save: WorldSave }) {
   const summary = summarizeTokenUsage(save.world.tokenLedger)
+  const trend = summarizeTokenTrend(save.world.tokenLedger)
   const providerEntries = Object.entries(summary.byProvider)
   const agentEntries = Object.entries(summary.byAgent)
   const requestEntries = Object.entries(summary.byType)
@@ -619,6 +670,27 @@ function TokenDashboard({ save }: { save: WorldSave }) {
       </div>
 
       <div className="grid gap-4">
+        <div className="rounded-2xl border border-white/10 bg-slate-950/30 p-3">
+          <h3 className="text-sm font-semibold text-white">最近时段趋势</h3>
+          <div className="mt-4 grid grid-cols-6 gap-2">
+            {trend.map((bucket) => {
+              const max = Math.max(...trend.map((item) => item.total), 1)
+              const height = Math.max(10, Math.round((bucket.total / max) * 90))
+              return (
+                <div key={bucket.label} className="flex flex-col items-center gap-2">
+                  <div className="flex h-28 items-end">
+                    <div
+                      className="w-8 rounded-t-xl bg-gradient-to-t from-sky-500 to-indigo-400"
+                      style={{ height: `${height}px` }}
+                    />
+                  </div>
+                  <div className="text-[10px] text-slate-400">{bucket.label}</div>
+                  <div className="text-[10px] text-slate-300">{bucket.total}</div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
         <TokenSection title="按 Provider 统计" entries={providerEntries} total={summary.totalTokens} />
         <TokenSection title="按 Agent 统计" entries={agentEntries} total={summary.totalTokens} />
         <TokenSection title="按请求类型统计" entries={requestEntries} total={summary.totalTokens} />

@@ -14,7 +14,7 @@ import {
   type WorldSave,
   worldSaveSchema
 } from '../shared/contracts'
-import { createNewWorldSave } from '../shared/game'
+import { createNewWorldSave, deriveSaveMeta } from '../shared/game'
 
 type PersistedState = {
   settings: AppSettings
@@ -124,15 +124,10 @@ export function loadSave(id: string): WorldSave {
 }
 
 export function writeSave(save: WorldSave): SaveMeta {
+  const now = Date.now()
   const parsed = worldSaveSchema.parse({
     ...save,
-    meta: {
-      ...save.meta,
-      updatedAt: Date.now(),
-      lastPlayedAt: Date.now(),
-      agentCount: save.world.agents.length,
-      buildingCount: save.world.buildings.length
-    }
+    meta: deriveSaveMeta(save, now)
   })
   writeFileSync(getSavePath(parsed.meta.id), JSON.stringify(parsed, null, 2), 'utf8')
   return parsed.meta
