@@ -1,5 +1,9 @@
 [
   {
+    "id": "admin-core",
+    "description": "管理员 Agent 的受限行为脚本，可由 Agent 在 Authority 审核后调优。"
+  },
+  {
     "id": "settlement-worker",
     "description": "用于资源采集、回城交付、工地建设的默认行为脚本。"
   },
@@ -10,5 +14,9 @@
   {
     "id": "decorative-loop",
     "description": "用于未来装饰性实体或待机动画的占位脚本。"
+  },
+  {
+    "id": "settlement-structure",
+    "description": "用于已建成建筑的默认实体脚本。"
   }
 ]

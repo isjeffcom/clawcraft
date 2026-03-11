@@ -624,6 +624,7 @@ function OverviewPanel({ save }: { save: WorldSave }) {
   const admin = save.world.agents.find((agent) => agent.role === 'admin') ?? save.world.agents[0]
   const npcCount = save.world.agents.filter((agent) => agent.role === 'npc').length
   const authority = getAuthoritySnapshot(save)
+  const adminScript = save.world.scriptProfiles.find((profile) => profile.id === admin.scriptId)
   return (
     <div className="grid gap-4">
       <div className="grid gap-3 md:grid-cols-2">
@@ -652,6 +653,24 @@ function OverviewPanel({ save }: { save: WorldSave }) {
           value={authority.memoryLoad}
           tone="linear-gradient(90deg, #f59e0b, #fb923c)"
         />
+      </div>
+
+      <Divider className="bg-white/10" />
+
+      <div className="grid gap-3">
+        <h3 className="text-base font-semibold text-white">受限脚本演化</h3>
+        <div className="grid gap-3 md:grid-cols-2">
+          <Metric label="Admin Script" value={`${adminScript?.name ?? '未加载'} · v${adminScript?.version ?? 0}`} />
+          <Metric label="当前参数" value={adminScript ? `木 ${adminScript.params.woodBias} / 石 ${adminScript.params.stoneBias}` : '无'} />
+        </div>
+        <div className="space-y-2">
+          {save.world.scriptEvents.slice(-3).reverse().map((event) => (
+            <div key={event.id} className="rounded-2xl border border-emerald-400/15 bg-emerald-400/5 p-3 text-sm text-slate-200">
+              {event.summary}
+            </div>
+          ))}
+          {save.world.scriptEvents.length === 0 ? <div className="text-sm text-slate-400">还没有脚本变更事件。</div> : null}
+        </div>
       </div>
 
       <Divider className="bg-white/10" />

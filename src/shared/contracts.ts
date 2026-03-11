@@ -82,6 +82,7 @@ export const agentStateSchema = z.object({
   name: z.string(),
   species: agentSpeciesSchema,
   role: z.enum(['admin', 'npc']),
+  scriptId: z.string(),
   position: pointSchema,
   inventory: inventorySchema,
   currentTask: z.string(),
@@ -96,6 +97,7 @@ export type AgentState = z.infer<typeof agentStateSchema>
 export const resourceNodeSchema = z.object({
   id: z.string(),
   kind: resourceKindSchema,
+  scriptId: z.string(),
   position: pointSchema,
   amount: z.number().int().positive()
 })
@@ -104,11 +106,41 @@ export type ResourceNode = z.infer<typeof resourceNodeSchema>
 export const buildingSchema = z.object({
   id: z.string(),
   kind: buildingKindSchema,
+  scriptId: z.string(),
   position: pointSchema,
   progress: z.number().min(0).max(1),
   complete: z.boolean()
 })
 export type BuildingState = z.infer<typeof buildingSchema>
+
+export const scriptParamsSchema = z.object({
+  woodBias: z.number().min(0).max(1),
+  stoneBias: z.number().min(0).max(1),
+  expansionBias: z.number().min(0).max(1),
+  tidyBias: z.number().min(0).max(1),
+  spawnBias: z.number().min(0).max(1)
+})
+export type ScriptParams = z.infer<typeof scriptParamsSchema>
+
+export const scriptProfileSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  ownerAgentId: z.string(),
+  version: z.number().int().positive(),
+  updatedAt: z.number(),
+  params: scriptParamsSchema
+})
+export type ScriptProfile = z.infer<typeof scriptProfileSchema>
+
+export const scriptEventSchema = z.object({
+  id: z.string(),
+  scriptId: z.string(),
+  actorId: z.string(),
+  timestamp: z.number(),
+  status: z.enum(['approved', 'rejected']),
+  summary: z.string()
+})
+export type ScriptEvent = z.infer<typeof scriptEventSchema>
 
 export const authorityLimitsSchema = z.object({
   maxAgents: z.number().int().positive(),
@@ -149,6 +181,8 @@ export const worldStateSchema = z.object({
   agents: z.array(agentStateSchema),
   chatLog: z.array(chatMessageSchema),
   tokenLedger: z.array(tokenUsageRecordSchema),
+  scriptProfiles: z.array(scriptProfileSchema),
+  scriptEvents: z.array(scriptEventSchema),
   authority: authorityLimitsSchema
 })
 export type WorldState = z.infer<typeof worldStateSchema>

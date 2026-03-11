@@ -11,6 +11,8 @@ import {
   type ResourceNode,
   type SaveDraft,
   type SaveMeta,
+  type ScriptParams,
+  type ScriptProfile,
   type TokenUsageRecord,
   type WorldSave,
   focusGoalSchema,
@@ -93,6 +95,7 @@ function createAgent(name: string, species: AgentSpecies, role: 'admin' | 'npc',
     name,
     species,
     role,
+    scriptId: role === 'admin' ? 'admin-core' : 'settlement-worker',
     position,
     inventory: {
       wood: 0,
@@ -104,6 +107,23 @@ function createAgent(name: string, species: AgentSpecies, role: 'admin' | 'npc',
     memories: [],
     memorySummary: [],
     color: inferSpeciesColor(species)
+  }
+}
+
+function createDefaultScriptProfile(ownerAgentId: string): ScriptProfile {
+  return {
+    id: 'admin-core',
+    name: 'Admin Core Script',
+    ownerAgentId,
+    version: 1,
+    updatedAt: Date.now(),
+    params: {
+      woodBias: 0.55,
+      stoneBias: 0.45,
+      expansionBias: 0.7,
+      tidyBias: 0.2,
+      spawnBias: 0.68
+    }
   }
 }
 
@@ -165,10 +185,16 @@ function getNextBuilding(world: WorldSave['world']): { kind: BuildingKind; posit
 
 function getDesiredResource(world: WorldSave['world']): ResourceKind {
   const nextBuilding = getNextBuilding(world)
+  const adminScript = world.scriptProfiles.find((profile) => profile.id === 'admin-core')
 
   if (!nextBuilding) {
     if (world.focus === 'wood') return 'tree'
     if (world.focus === 'stone') return 'stone'
+    const woodBias = adminScript?.params.woodBias ?? 0.5
+    const stoneBias = adminScript?.params.stoneBias ?? 0.5
+    if (Math.abs(woodBias - stoneBias) > 0.08) {
+      return woodBias >= stoneBias ? 'tree' : 'stone'
+    }
     return world.stockpile.wood <= world.stockpile.stone ? 'tree' : 'stone'
   }
 
@@ -203,6 +229,7 @@ function completeBuilding(world: WorldSave['world'], kind: BuildingKind, positio
   const building: BuildingState = {
     id: createId('building'),
     kind,
+    scriptId: 'settlement-structure',
     position,
     progress: 1,
     complete: true
@@ -214,10 +241,12 @@ function completeBuilding(world: WorldSave['world'], kind: BuildingKind, positio
 function maybeSpawnNpc(save: WorldSave, admin: AgentState): void {
   const huts = save.world.buildings.filter((building) => building.kind === 'hut' && building.complete).length
   const npcCount = save.world.agents.filter((agent) => agent.role === 'npc').length
+  const adminScript = save.world.scriptProfiles.find((profile) => profile.id === admin.scriptId)
 
   if (huts === 0) return
   if (npcCount >= huts) return
   if (save.world.focus === 'tidy') return
+  if ((adminScript?.params.spawnBias ?? 0.5) < 0.35) return
   if (save.world.agents.length >= save.world.authority.maxAgents) return
   if (!spendStockpile(save.world, 8, 2)) return
 
@@ -391,6 +420,7 @@ export function createNewWorldSave(draft: SaveDraft): WorldSave {
         resources.push({
           id: createId('tree'),
           kind: 'tree',
+          scriptId: 'resource-node',
           position: { x, y },
           amount: 3 + Math.floor(random() * 4)
         })
@@ -399,6 +429,7 @@ export function createNewWorldSave(draft: SaveDraft): WorldSave {
         resources.push({
           id: createId('stone'),
           kind: 'stone',
+          scriptId: 'resource-node',
           position: { x, y },
           amount: 4 + Math.floor(random() * 5)
         })
@@ -435,6 +466,17 @@ export function createNewWorldSave(draft: SaveDraft): WorldSave {
         createSystemMessage('世界启动：Admin Agent 会优先建设城镇、积累资源，并在预算范围内培育更多小 Agent。')
       ],
       tokenLedger: [],
+      scriptProfiles: [createDefaultScriptProfile(admin.id)],
+      scriptEvents: [
+        {
+          id: createId('script-event'),
+          scriptId: 'admin-core',
+          actorId: admin.id,
+          timestamp: Date.now(),
+          status: 'approved',
+          summary: 'Authority 已批准 Admin Core Script v1，用于建设城镇并发展更多小 Agent。'
+        }
+      ],
       authority: { ...defaultAuthorityLimits }
     }
   }
@@ -522,6 +564,28 @@ export function applyFocus(save: WorldSave, focus: FocusGoal): WorldSave {
   clone.world.agents.forEach((agent) => {
     agent.focus = focus
   })
+  const admin = clone.world.agents.find((agent) => agent.role === 'admin')
+  const adminScript = clone.world.scriptProfiles.find((profile) => profile.id === admin?.scriptId)
+  if (admin && adminScript) {
+    const tunedParams: Record<FocusGoal, ScriptParams> = {
+      balanced: { woodBias: 0.5, stoneBias: 0.5, expansionBias: 0.6, tidyBias: 0.35, spawnBias: 0.55 },
+      expand: { woodBias: 0.58, stoneBias: 0.42, expansionBias: 0.8, tidyBias: 0.2, spawnBias: 0.75 },
+      wood: { woodBias: 0.85, stoneBias: 0.15, expansionBias: 0.58, tidyBias: 0.2, spawnBias: 0.6 },
+      stone: { woodBias: 0.2, stoneBias: 0.8, expansionBias: 0.55, tidyBias: 0.25, spawnBias: 0.52 },
+      tidy: { woodBias: 0.45, stoneBias: 0.55, expansionBias: 0.25, tidyBias: 0.9, spawnBias: 0.2 }
+    }
+    adminScript.version += 1
+    adminScript.updatedAt = Date.now()
+    adminScript.params = tunedParams[focus]
+    clone.world.scriptEvents.push({
+      id: createId('script-event'),
+      scriptId: adminScript.id,
+      actorId: admin.id,
+      timestamp: Date.now(),
+      status: 'approved',
+      summary: `Authority 批准 Admin 将脚本调优为 ${focus} 模式，版本提升至 v${adminScript.version}。`
+    })
+  }
   return clone
 }
 
@@ -663,6 +727,13 @@ export function migrateWorldSave(raw: unknown): WorldSave {
       agents: candidate.world?.agents ?? [],
       chatLog: candidate.world?.chatLog ?? [],
       tokenLedger: candidate.world?.tokenLedger ?? [],
+      scriptProfiles:
+        candidate.world?.scriptProfiles && candidate.world.scriptProfiles.length > 0
+          ? candidate.world.scriptProfiles
+          : candidate.world?.agents?.[0]
+            ? [createDefaultScriptProfile(candidate.world.agents[0].id)]
+            : [],
+      scriptEvents: candidate.world?.scriptEvents ?? [],
       authority: {
         ...defaultAuthorityLimits,
         ...candidate.world?.authority
@@ -671,6 +742,18 @@ export function migrateWorldSave(raw: unknown): WorldSave {
   }
 
   const parsed = normalized as WorldSave
+  parsed.world.resources = parsed.world.resources.map((resource) => ({
+    ...resource,
+    scriptId: resource.scriptId ?? 'resource-node'
+  }))
+  parsed.world.buildings = parsed.world.buildings.map((building) => ({
+    ...building,
+    scriptId: building.scriptId ?? (building.complete ? 'settlement-structure' : 'build-site')
+  }))
+  parsed.world.agents = parsed.world.agents.map((agent) => ({
+    ...agent,
+    scriptId: agent.scriptId ?? (agent.role === 'admin' ? 'admin-core' : 'settlement-worker')
+  }))
   return {
     ...parsed,
     meta: deriveSaveMeta(parsed, parsed.meta.updatedAt || Date.now())

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { worldSaveSchema } from '../../src/shared/contracts'
 import {
+  applyFocus,
   createEstimatedUsage,
   createNewWorldSave,
   deriveSaveMeta,
@@ -135,5 +136,20 @@ describe('shared game simulation', () => {
     expect(migrated.meta.focus).toBe('expand')
     expect(migrated.meta.tokenTotal).toBe(0)
     expect(authority.agentLoad).toBeGreaterThan(0)
+  })
+
+  it('updates the admin script profile when focus changes', () => {
+    const save = createNewWorldSave({
+      name: 'Script World',
+      species: 'cat',
+      seed: 88
+    })
+
+    const updated = applyFocus(save, 'tidy')
+    const adminScript = updated.world.scriptProfiles.find((profile) => profile.id === 'admin-core')
+
+    expect(adminScript?.version).toBeGreaterThan(1)
+    expect(adminScript?.params.tidyBias).toBeGreaterThan(0.8)
+    expect(updated.world.scriptEvents.at(-1)?.summary).toContain('tidy')
   })
 })
