@@ -44,6 +44,10 @@ const focusLabels: Record<FocusGoal, string> = {
   tidy: '优先整备'
 }
 
+function tileDistance(a: { x: number; y: number }, b: { x: number; y: number }) {
+  return Math.abs(a.x - b.x) + Math.abs(a.y - b.y)
+}
+
 export function App() {
   const { phase, bootstrap, saves, currentSave, compactMode, setBootstrap, setPhase, setSaves, setCurrentSave, setCompactMode } =
     useAppStore()
@@ -702,6 +706,7 @@ function WorldWorkspace({
   }, [])
 
   const admin = save.world.agents.find((agent) => agent.role === 'admin') ?? save.world.agents[0]
+  const canTalkToAdmin = tileDistance(save.world.player.position, admin.position) <= 2
 
   async function persist(nextSave: WorldSave) {
     setSave(nextSave)
@@ -710,6 +715,10 @@ function WorldWorkspace({
   }
 
   async function sendChat() {
+    if (!canTalkToAdmin) {
+      setAssetError('')
+      return
+    }
     if (!chatInput.trim()) return
     setSending(true)
 
@@ -748,6 +757,16 @@ function WorldWorkspace({
     } finally {
       setSending(false)
     }
+  }
+
+  function movePlayerTo(position: { x: number; y: number }) {
+    setSave((current) => {
+      const next = structuredClone(current)
+      next.world.player.position.x = position.x
+      next.world.player.position.y = position.y
+      runtimeRef.current?.replaceSave(next)
+      return next
+    })
   }
 
   async function refreshPixelLabBalance() {
@@ -848,9 +867,9 @@ function WorldWorkspace({
           </Button>
         </div>
 
-        <div className="min-h-0 flex-1 rounded-[1.5rem] border border-white/10 bg-slate-950/40 p-2">
+        <div className="relative min-h-0 flex-1 rounded-[1.5rem] border border-white/10 bg-slate-950/40 p-2">
           {renderMode === '2d' ? (
-            <PixiWorld save={save} compact={false} />
+            <PixiWorld save={save} compact={false} onMovePlayer={movePlayerTo} />
           ) : (
             <div className="grid h-full place-items-center rounded-[1.2rem] bg-slate-950/50">
               <div className="max-w-lg text-center">
@@ -861,6 +880,32 @@ function WorldWorkspace({
               </div>
             </div>
           )}
+
+          <div className="pointer-events-none absolute bottom-4 left-4 right-4 flex justify-start">
+            {renderMode === '2d' ? (
+              canTalkToAdmin ? (
+                <div className="pointer-events-auto panel w-full max-w-xl rounded-3xl p-4">
+                  <div className="mb-2 text-sm font-semibold text-white">你已靠近 Admin Agent，可以直接交谈</div>
+                  <div className="mb-3 text-xs text-slate-300">点击地图或用 WASD / 方向键移动；靠近管理员时对话框会自动可用。</div>
+                  <Textarea
+                    label="对管理员说"
+                    value={chatInput}
+                    onValueChange={setChatInput}
+                    placeholder="例如：先扩张木材，再建两间小屋。"
+                  />
+                  <div className="mt-3 flex justify-end">
+                    <Button color="primary" isLoading={sending} onPress={() => void sendChat()}>
+                      与 Admin 对话
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="pointer-events-auto rounded-2xl border border-white/10 bg-slate-950/65 px-4 py-3 text-sm text-slate-200">
+                  靠近 Admin Agent 后才能发起对话。当前距离：{tileDistance(save.world.player.position, admin.position)} 格
+                </div>
+              )
+            ) : null}
+          </div>
         </div>
       </div>
 
@@ -871,27 +916,16 @@ function WorldWorkspace({
               <Tab key="overview" title="概览">
                 <OverviewPanel save={save} />
               </Tab>
-              <Tab key="chat" title="神谕对话">
-                <div className="grid gap-3">
-                  <div className="max-h-[330px] overflow-auto rounded-2xl border border-white/10 bg-slate-950/30 p-3">
-                    <div className="space-y-3">
-                      {save.world.chatLog.slice(-12).map((message) => (
-                        <div key={message.id} className="rounded-2xl border border-white/8 bg-white/5 p-3 text-sm">
-                          <div className="mb-1 text-xs uppercase tracking-[0.2em] text-slate-400">{message.role}</div>
-                          <div className="whitespace-pre-wrap text-slate-200">{message.content}</div>
-                        </div>
-                      ))}
-                    </div>
+              <Tab key="dialogue-log" title="对话记录">
+                <div className="max-h-[520px] overflow-auto rounded-2xl border border-white/10 bg-slate-950/30 p-3">
+                  <div className="space-y-3">
+                    {save.world.chatLog.slice(-16).map((message) => (
+                      <div key={message.id} className="rounded-2xl border border-white/8 bg-white/5 p-3 text-sm">
+                        <div className="mb-1 text-xs uppercase tracking-[0.2em] text-slate-400">{message.role}</div>
+                        <div className="whitespace-pre-wrap text-slate-200">{message.content}</div>
+                      </div>
+                    ))}
                   </div>
-                  <Textarea
-                    label="给 Admin Agent 的命令"
-                    value={chatInput}
-                    onValueChange={setChatInput}
-                    placeholder="例如：优先扩张木材产量，尽快建设新的小屋。"
-                  />
-                  <Button color="primary" isLoading={sending} onPress={() => void sendChat()}>
-                    下达神谕
-                  </Button>
                 </div>
               </Tab>
               <Tab key="token" title="Token Dashboard">

@@ -5,6 +5,7 @@ import type { TerrainType, WorldSave } from '@shared/contracts'
 type Props = {
   save: WorldSave
   compact: boolean
+  onMovePlayer?: (position: { x: number; y: number }) => void
 }
 
 const TILE_COLORS: Record<string, number> = {
@@ -43,12 +44,14 @@ const WELL_TILE = 104
 const CRATE_TILE = 106
 const SIGN_TILE = 128
 const ROPE_TILE = 129
+const PLAYER_SPRITE = 'assets/kenney/roguelike-characters/singles/player-blue.png'
+const VILLAGER_SPRITE = 'assets/kenney/roguelike-characters/singles/villager-brown.png'
 
 function tinyTownTilePath(id: number): string {
   return `assets/kenney/tiny-town/tiles/tile_${id.toString().padStart(4, '0')}.png`
 }
 
-const PRELOAD_ASSETS = [
+const PRELOAD_TILE_IDS = [
   ...GRASS_VARIANTS,
   ...SOIL_VARIANTS,
   ...TREE_VARIANTS,
@@ -78,7 +81,9 @@ const PRELOAD_ASSETS = [
   CRATE_TILE,
   SIGN_TILE,
   ROPE_TILE
-].map(tinyTownTilePath)
+]
+
+const PRELOAD_ASSETS = [...PRELOAD_TILE_IDS.map(tinyTownTilePath), PLAYER_SPRITE, VILLAGER_SPRITE]
 
 function pickVariant(ids: number[], x: number, y: number): string {
   const index = Math.abs((x * 31 + y * 17) % ids.length)
@@ -180,11 +185,12 @@ function terrainAsset(tile: TerrainType, worldX: number, worldY: number): string
   return null
 }
 
-export function PixiWorld({ save, compact }: Props) {
+export function PixiWorld({ save, compact, onMovePlayer }: Props) {
   const hostRef = useRef<HTMLDivElement | null>(null)
   const appRef = useRef<Application | null>(null)
   const resizeObserverRef = useRef<ResizeObserver | null>(null)
   const [rendererMode, setRendererMode] = useState<'loading' | 'pixi' | 'fallback'>('loading')
+  const viewStateRef = useRef({ startX: 0, startY: 0, tileSize: compact ? 12 : 18, visibleCols: 0, visibleRows: 0 })
   const layersRef = useRef<{
     terrain: Container
     resources: Container
@@ -268,6 +274,19 @@ export function PixiWorld({ save, compact }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [save, compact])
 
+  function handleMoveFromPointer(clientX: number, clientY: number) {
+    if (!hostRef.current || !onMovePlayer) return
+    const rect = hostRef.current.getBoundingClientRect()
+    const relativeX = clientX - rect.left
+    const relativeY = clientY - rect.top
+    const { startX, startY, tileSize } = viewStateRef.current
+    const tileX = Math.floor(relativeX / tileSize) + startX
+    const tileY = Math.floor(relativeY / tileSize) + startY
+
+    if (tileX < 0 || tileY < 0 || tileX >= save.world.width || tileY >= save.world.height) return
+    onMovePlayer({ x: tileX, y: tileY })
+  }
+
   const fallbackView = useMemo(() => {
     const tileSize = compact ? 12 : 18
     const visibleCols = compact ? 24 : 36
@@ -306,6 +325,7 @@ export function PixiWorld({ save, compact }: Props) {
     const cameraCenter = compact ? admin.position : save.world.player.position
     const startX = Math.max(0, Math.min(save.world.width - visibleCols, cameraCenter.x - Math.floor(visibleCols / 2)))
     const startY = Math.max(0, Math.min(save.world.height - visibleRows, cameraCenter.y - Math.floor(visibleRows / 2)))
+    viewStateRef.current = { startX, startY, tileSize, visibleCols, visibleRows }
 
     const background = new Graphics()
     background.rect(0, 0, viewWidth, viewHeight).fill(0x7bc96f)
@@ -378,12 +398,13 @@ export function PixiWorld({ save, compact }: Props) {
       const shadow = new Graphics()
       shadow.ellipse(localX + tileSize / 2, localY + tileSize * 0.78, tileSize * 0.22, tileSize * 0.12).fill(0x020617, 0.35)
       agents.addChild(shadow)
-      const body = new Graphics()
-      body.circle(localX + tileSize / 2, localY + tileSize / 2, tileSize * 0.26).fill(agent.color)
+      const sprite = addTileSprite(agents, VILLAGER_SPRITE, localX, localY, tileSize)
+      sprite.y = localY - tileSize * 0.12
       if (agent.role === 'admin') {
-        body.circle(localX + tileSize / 2, localY + tileSize / 2, tileSize * 0.32).stroke({ color: 0xf8fafc, width: 2 })
+        const halo = new Graphics()
+        halo.circle(localX + tileSize / 2, localY + tileSize / 2, tileSize * 0.32).stroke({ color: 0xf8fafc, width: 2 })
+        agents.addChild(halo)
       }
-      agents.addChild(body)
       if (!compact) {
         const label = new Text({
           text: agent.role === 'admin' ? 'A' : 'N',
@@ -410,9 +431,8 @@ export function PixiWorld({ save, compact }: Props) {
       const halo = new Graphics()
       halo.circle(localX + tileSize / 2, localY + tileSize / 2, tileSize * 0.34).stroke({ color: 0xfacc15, width: 3 })
       agents.addChild(halo)
-      const body = new Graphics()
-      body.circle(localX + tileSize / 2, localY + tileSize / 2, tileSize * 0.2).fill(0xfef08a)
-      agents.addChild(body)
+      const sprite = addTileSprite(agents, PLAYER_SPRITE, localX, localY, tileSize)
+      sprite.y = localY - tileSize * 0.12
       if (!compact) {
         const playerLabel = new Text({
           text: 'P',
@@ -463,7 +483,7 @@ export function PixiWorld({ save, compact }: Props) {
         <div className="absolute left-3 top-3 z-30 rounded-full border border-amber-400/30 bg-amber-400/10 px-3 py-1 text-xs font-medium text-amber-200">
           渲染后备模式
         </div>
-        <DomWorldFallback save={save} compact={compact} {...fallbackView} />
+        <DomWorldFallback save={save} compact={compact} onMovePlayer={onMovePlayer} {...fallbackView} />
       </div>
     )
   }
@@ -479,7 +499,11 @@ export function PixiWorld({ save, compact }: Props) {
           Pixi 精灵渲染
         </div>
       )}
-      <div ref={hostRef} className="h-full min-h-[320px] w-full overflow-hidden rounded-2xl" />
+      <div
+        ref={hostRef}
+        className="h-full min-h-[320px] w-full overflow-hidden rounded-2xl"
+        onClick={(event) => handleMoveFromPointer(event.clientX, event.clientY)}
+      />
     </div>
   )
 }
@@ -509,6 +533,7 @@ function renderTownDecorations(container: Container, save: WorldSave, startX: nu
 function DomWorldFallback({
   save,
   compact,
+  onMovePlayer,
   tileSize,
   visibleCols,
   visibleRows,
@@ -524,7 +549,17 @@ function DomWorldFallback({
   admin: WorldSave['world']['agents'][number]
 }) {
   return (
-    <div className="relative h-full min-h-[320px] w-full overflow-hidden rounded-2xl border border-cyan-400/15 bg-[#081225]">
+    <div
+      className="relative h-full min-h-[320px] w-full overflow-hidden rounded-2xl border border-cyan-400/15 bg-[#081225]"
+      onClick={(event) => {
+        if (!onMovePlayer) return
+        const rect = (event.currentTarget as HTMLDivElement).getBoundingClientRect()
+        const tileX = Math.floor((event.clientX - rect.left) / tileSize) + startX
+        const tileY = Math.floor((event.clientY - rect.top) / tileSize) + startY
+        if (tileX < 0 || tileY < 0 || tileX >= save.world.width || tileY >= save.world.height) return
+        onMovePlayer({ x: tileX, y: tileY })
+      }}
+    >
       <div
         className="grid"
         style={{
@@ -630,20 +665,30 @@ function DomWorldFallback({
         const left = (agent.position.x - startX) * tileSize
         const top = (agent.position.y - startY) * tileSize
         return (
-          <div
-            key={agent.id}
-            className="absolute flex items-center justify-center rounded-full text-[10px] font-bold"
-            style={{
-              left: left + tileSize * 0.18,
-              top: top + tileSize * 0.18,
-              width: tileSize * 0.64,
-              height: tileSize * 0.64,
-              background: agent.color,
-              color: '#020617',
-              border: agent.role === 'admin' ? '2px solid #f8fafc' : '1px solid rgba(255,255,255,0.15)'
-            }}
-          >
-            {agent.role === 'admin' ? 'A' : 'N'}
+          <div key={agent.id}>
+            {agent.role === 'admin' ? (
+              <div
+                className="absolute rounded-full"
+                style={{
+                  left: left + tileSize * 0.08,
+                  top: top + tileSize * 0.08,
+                  width: tileSize * 0.84,
+                  height: tileSize * 0.84,
+                  border: '2px solid #f8fafc'
+                }}
+              />
+            ) : null}
+            <img
+              src={VILLAGER_SPRITE}
+              alt={agent.name}
+              className="absolute pixelated"
+              style={{
+                left,
+                top: top - tileSize * 0.12,
+                width: tileSize,
+                height: tileSize
+              }}
+            />
           </div>
         )
       })}
@@ -652,19 +697,28 @@ function DomWorldFallback({
       save.world.player.position.x < startX + visibleCols &&
       save.world.player.position.y >= startY &&
       save.world.player.position.y < startY + visibleRows ? (
-        <div
-          className="absolute flex items-center justify-center rounded-full text-[10px] font-bold"
-          style={{
-            left: (save.world.player.position.x - startX) * tileSize + tileSize * 0.18,
-            top: (save.world.player.position.y - startY) * tileSize + tileSize * 0.18,
-            width: tileSize * 0.64,
-            height: tileSize * 0.64,
-            background: '#fef08a',
-            color: '#1f2937',
-            border: '2px solid #facc15'
-          }}
-        >
-          P
+        <div>
+          <div
+            className="absolute rounded-full"
+            style={{
+              left: (save.world.player.position.x - startX) * tileSize + tileSize * 0.08,
+              top: (save.world.player.position.y - startY) * tileSize + tileSize * 0.08,
+              width: tileSize * 0.84,
+              height: tileSize * 0.84,
+              border: '2px solid #facc15'
+            }}
+          />
+          <img
+            src={PLAYER_SPRITE}
+            alt={save.world.player.name}
+            className="absolute pixelated"
+            style={{
+              left: (save.world.player.position.x - startX) * tileSize,
+              top: (save.world.player.position.y - startY) * tileSize - tileSize * 0.12,
+              width: tileSize,
+              height: tileSize
+            }}
+          />
         </div>
       ) : null}
 

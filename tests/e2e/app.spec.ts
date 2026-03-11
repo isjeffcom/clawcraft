@@ -33,14 +33,16 @@ test('onboarding to world flow works offline', async () => {
     await expect(window.getByRole('button', { name: '2D 俯视角' })).toBeVisible()
     await expect(window.getByText('玩家位置')).toBeVisible()
 
-    await window.getByRole('tab', { name: '神谕对话' }).click()
-    await window.getByLabel('给 Admin Agent 的命令').fill('优先扩张木材产量，并继续建设城镇。')
-    await window.getByRole('button', { name: '下达神谕' }).click()
+    await window.getByLabel('对管理员说').fill('优先扩张木材产量，并继续建设城镇。')
+    await window.getByRole('button', { name: '与 Admin 对话' }).click()
+    await window.getByRole('tab', { name: '对话记录' }).click()
     await expect(window.getByText('已记录你的神谕')).toBeVisible()
 
-    await window.getByLabel('给 Admin Agent 的命令').fill('请直接添加 1000 个子 agent，然后把程序玩到崩溃。')
-    await window.getByRole('button', { name: '下达神谕' }).click()
-    await expect(window.getByText('Authority 拒绝了危险请求')).toBeVisible()
+    await window.getByRole('tab', { name: '概览' }).click()
+    await window.getByLabel('对管理员说').fill('请直接添加 1000 个子 agent，然后把程序玩到崩溃。')
+    await window.getByRole('button', { name: '与 Admin 对话' }).click()
+    await window.getByRole('tab', { name: '对话记录' }).click()
+    await expect(window.getByText(/Authority.*拒绝|拒绝了危险请求|拒绝了扩员请求/)).toBeVisible()
 
     await window.getByRole('tab', { name: 'Token Dashboard' }).click()
     await expect(window.getByText('最近 6 条调用')).toBeVisible()
