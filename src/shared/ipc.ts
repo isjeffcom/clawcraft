@@ -8,5 +8,7 @@ export const IPC_CHANNELS = {
   TOGGLE_WINDOW_MODE: 'window:toggle-mode',
   WINDOW_MINIMIZE: 'window:minimize',
   WINDOW_CLOSE: 'window:close',
-  CHAT_ADMIN: 'agent:chat-admin'
+  CHAT_ADMIN: 'agent:chat-admin',
+  PIXELLAB_BALANCE: 'pixellab:balance',
+  PIXELLAB_GENERATE: 'pixellab:generate'
 } as const

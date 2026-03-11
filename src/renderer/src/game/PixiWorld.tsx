@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Application, Container, Graphics, Text } from 'pixi.js'
-import type { WorldSave } from '@shared/contracts'
+import { Application, Assets, Container, Graphics, Sprite, Text } from 'pixi.js'
+import type { TerrainType, WorldSave } from '@shared/contracts'
 
 type Props = {
   save: WorldSave
@@ -13,6 +13,171 @@ const TILE_COLORS: Record<string, number> = {
   water: 0x1d4ed8,
   stone: 0x475569,
   soil: 0x6b4f3c
+}
+
+const GRASS_VARIANTS = [0, 1, 2]
+const SOIL_VARIANTS = [36, 37, 38, 39, 40, 41, 42]
+const TREE_VARIANTS = [3, 4, 5, 27, 28, 29, 30, 31, 32, 33, 34, 35]
+const PATH_TILE = 43
+const FENCE_LEFT = 44
+const FENCE_MID = 45
+const FENCE_RIGHT = 46
+const FENCE_POST = 47
+const BLUE_ROOF = [48, 49, 50]
+const ORANGE_ROOF = [52, 53, 54]
+const BLUE_GABLE = 63
+const ORANGE_GABLE = 67
+const WOOD_WALL_LEFT = 72
+const WOOD_WALL_MID = 73
+const WOOD_WALL_RIGHT = 75
+const STONE_WALL_LEFT = 76
+const STONE_WALL_MID = 77
+const STONE_WALL_RIGHT = 79
+const WOOD_WINDOW = 84
+const WOOD_DOOR = 85
+const STONE_WINDOW = 88
+const STONE_DOOR = 89
+const CAMPFIRE_TILE = 94
+const TARGET_TILE = 95
+const WELL_TILE = 104
+const CRATE_TILE = 106
+const SIGN_TILE = 128
+const ROPE_TILE = 129
+
+function tinyTownTilePath(id: number): string {
+  return `/assets/kenney/tiny-town/tiles/tile_${id.toString().padStart(4, '0')}.png`
+}
+
+const PRELOAD_ASSETS = [
+  ...GRASS_VARIANTS,
+  ...SOIL_VARIANTS,
+  ...TREE_VARIANTS,
+  126,
+  PATH_TILE,
+  FENCE_LEFT,
+  FENCE_MID,
+  FENCE_RIGHT,
+  FENCE_POST,
+  ...BLUE_ROOF,
+  ...ORANGE_ROOF,
+  BLUE_GABLE,
+  ORANGE_GABLE,
+  WOOD_WALL_LEFT,
+  WOOD_WALL_MID,
+  WOOD_WALL_RIGHT,
+  STONE_WALL_LEFT,
+  STONE_WALL_MID,
+  STONE_WALL_RIGHT,
+  WOOD_WINDOW,
+  WOOD_DOOR,
+  STONE_WINDOW,
+  STONE_DOOR,
+  CAMPFIRE_TILE,
+  TARGET_TILE,
+  WELL_TILE,
+  CRATE_TILE,
+  SIGN_TILE,
+  ROPE_TILE
+].map(tinyTownTilePath)
+
+function pickVariant(ids: number[], x: number, y: number): string {
+  const index = Math.abs((x * 31 + y * 17) % ids.length)
+  return tinyTownTilePath(ids[index]!)
+}
+
+function addTileSprite(container: Container, assetPath: string, x: number, y: number, tileSize: number) {
+  const sprite = Sprite.from(assetPath)
+  sprite.x = x
+  sprite.y = y
+  sprite.width = tileSize
+  sprite.height = tileSize
+  sprite.roundPixels = true
+  container.addChild(sprite)
+  return sprite
+}
+
+function addPathIfNeeded(container: Container, tileX: number, tileY: number, localX: number, localY: number, tileSize: number, townCenter: WorldSave['world']['townCenter'], buildings: WorldSave['world']['buildings']) {
+  const sameColumn = tileX === townCenter.x && Math.abs(tileY - townCenter.y) <= 8
+  const sameRow = tileY === townCenter.y && Math.abs(tileX - townCenter.x) <= 8
+  const nearBuilding = buildings.some(
+    (building) =>
+      Math.abs(building.position.x - tileX) <= 1 &&
+      Math.abs(building.position.y - tileY) <= 1 &&
+      building.complete
+  )
+
+  if (sameColumn || sameRow || nearBuilding) {
+    addTileSprite(container, tinyTownTilePath(PATH_TILE), localX, localY, tileSize)
+  }
+}
+
+function renderBuildingSprite(
+  container: Container,
+  building: WorldSave['world']['buildings'][number],
+  startX: number,
+  startY: number,
+  tileSize: number
+) {
+  const originX = (building.position.x - startX - 1) * tileSize
+  const originY = (building.position.y - startY - 2) * tileSize
+
+  if (building.kind === 'campfire') {
+    addTileSprite(container, tinyTownTilePath(CAMPFIRE_TILE), (building.position.x - startX) * tileSize, (building.position.y - startY) * tileSize, tileSize)
+    return
+  }
+
+  if (building.kind === 'storage') {
+    ;[
+      [BLUE_ROOF[0], 0, 0],
+      [BLUE_GABLE, 1, 0],
+      [BLUE_ROOF[2], 2, 0],
+      [STONE_WALL_LEFT, 0, 1],
+      [STONE_WINDOW, 1, 1],
+      [STONE_WALL_RIGHT, 2, 1],
+      [STONE_WALL_LEFT, 0, 2],
+      [STONE_DOOR, 1, 2],
+      [STONE_WALL_RIGHT, 2, 2],
+      [CRATE_TILE, 3, 2]
+    ].forEach(([tileId, dx, dy]) => addTileSprite(container, tinyTownTilePath(tileId as number), originX + (dx as number) * tileSize, originY + (dy as number) * tileSize, tileSize))
+    return
+  }
+
+  if (building.kind === 'hut') {
+    ;[
+      [ORANGE_ROOF[0], 0, 0],
+      [ORANGE_GABLE, 1, 0],
+      [ORANGE_ROOF[2], 2, 0],
+      [WOOD_WALL_LEFT, 0, 1],
+      [WOOD_WINDOW, 1, 1],
+      [WOOD_WALL_RIGHT, 2, 1],
+      [WOOD_WALL_LEFT, 0, 2],
+      [WOOD_DOOR, 1, 2],
+      [WOOD_WALL_RIGHT, 2, 2]
+    ].forEach(([tileId, dx, dy]) => addTileSprite(container, tinyTownTilePath(tileId as number), originX + (dx as number) * tileSize, originY + (dy as number) * tileSize, tileSize))
+    return
+  }
+
+  ;[
+    [BLUE_ROOF[0], 0, 0],
+    [BLUE_GABLE, 1, 0],
+    [BLUE_ROOF[2], 2, 0],
+    [STONE_WALL_LEFT, 0, 1],
+    [STONE_WINDOW, 1, 1],
+    [STONE_WALL_RIGHT, 2, 1],
+    [STONE_WALL_LEFT, 0, 2],
+    [STONE_DOOR, 1, 2],
+    [STONE_WALL_RIGHT, 2, 2],
+    [TARGET_TILE, 3, 0],
+    [WELL_TILE, 3, 2],
+    [SIGN_TILE, -1, 2]
+  ].forEach(([tileId, dx, dy]) => addTileSprite(container, tinyTownTilePath(tileId as number), originX + (dx as number) * tileSize, originY + (dy as number) * tileSize, tileSize))
+}
+
+function terrainAsset(tile: TerrainType, worldX: number, worldY: number): string | null {
+  if (tile === 'grass' || tile === 'forest') return pickVariant(GRASS_VARIANTS, worldX, worldY)
+  if (tile === 'soil') return pickVariant(SOIL_VARIANTS, worldX, worldY)
+  if (tile === 'stone') return tinyTownTilePath(126)
+  return null
 }
 
 export function PixiWorld({ save, compact }: Props) {
@@ -39,6 +204,7 @@ export function PixiWorld({ save, compact }: Props) {
       const height = Math.max(240, Math.floor(rect.height || host.clientHeight || 640))
 
       try {
+        await Assets.load(PRELOAD_ASSETS)
         const app = new Application()
         await app.init({
           width,
@@ -141,18 +307,27 @@ export function PixiWorld({ save, compact }: Props) {
     const startY = Math.max(0, Math.min(save.world.height - visibleRows, cameraCenter.y - Math.floor(visibleRows / 2)))
 
     const background = new Graphics()
-    background.rect(0, 0, viewWidth, viewHeight).fill(0x081225)
+    background.rect(0, 0, viewWidth, viewHeight).fill(0x7bc96f)
     terrain.addChild(background)
-
-    const terrainGraphics = new Graphics()
-    terrain.addChild(terrainGraphics)
 
     for (let y = 0; y < visibleRows; y += 1) {
       for (let x = 0; x < visibleCols; x += 1) {
         const worldX = startX + x
         const worldY = startY + y
         const tile = save.world.terrain[worldY]?.[worldX] ?? 'grass'
-        terrainGraphics.rect(x * tileSize, y * tileSize, tileSize + 1, tileSize + 1).fill(TILE_COLORS[tile] ?? 0x1e293b)
+        const localX = x * tileSize
+        const localY = y * tileSize
+        const assetPath = terrainAsset(tile, worldX, worldY)
+
+        if (assetPath) {
+          addTileSprite(terrain, assetPath, localX, localY, tileSize)
+        } else {
+          const water = new Graphics()
+          water.roundRect(localX, localY, tileSize, tileSize, 3).fill(TILE_COLORS[tile] ?? 0x1e293b)
+          terrain.addChild(water)
+        }
+
+        addPathIfNeeded(terrain, worldX, worldY, localX, localY, tileSize, save.world.townCenter, save.world.buildings)
       }
     }
 
@@ -167,39 +342,26 @@ export function PixiWorld({ save, compact }: Props) {
       }
       const localX = (resourceNode.position.x - startX) * tileSize
       const localY = (resourceNode.position.y - startY) * tileSize
-      const resourceGraphic = new Graphics()
       if (resourceNode.kind === 'tree') {
-        resourceGraphic.rect(localX + tileSize * 0.38, localY + tileSize * 0.55, tileSize * 0.24, tileSize * 0.3).fill(0x8b5a2b)
-        resourceGraphic.circle(localX + tileSize / 2, localY + tileSize * 0.42, tileSize * 0.3).fill(0x22c55e)
+        addTileSprite(resources, pickVariant(TREE_VARIANTS, resourceNode.position.x, resourceNode.position.y), localX, localY, tileSize)
       } else {
-        resourceGraphic.circle(localX + tileSize / 2, localY + tileSize / 2, tileSize * 0.28).fill(0x94a3b8)
+        addTileSprite(resources, tinyTownTilePath(126), localX, localY, tileSize)
       }
-      resources.addChild(resourceGraphic)
     })
 
     save.world.buildings.forEach((building) => {
       if (
-        building.position.x < startX ||
-        building.position.x >= startX + visibleCols ||
-        building.position.y < startY ||
-        building.position.y >= startY + visibleRows
+        building.position.x < startX - 2 ||
+        building.position.x >= startX + visibleCols + 2 ||
+        building.position.y < startY - 3 ||
+        building.position.y >= startY + visibleRows + 2
       ) {
         return
       }
-      const localX = (building.position.x - startX) * tileSize
-      const localY = (building.position.y - startY) * tileSize
-      const buildingGraphic = new Graphics()
-      const color =
-        building.kind === 'campfire'
-          ? 0xf97316
-          : building.kind === 'storage'
-            ? 0xfacc15
-            : building.kind === 'hut'
-              ? 0xfb7185
-              : 0x22d3ee
-      buildingGraphic.roundRect(localX + 1, localY + 1, tileSize - 2, tileSize - 2, 3).fill(color)
-      buildings.addChild(buildingGraphic)
+      renderBuildingSprite(buildings, building, startX, startY, tileSize)
     })
+
+    renderTownDecorations(buildings, save, startX, startY, tileSize)
 
     save.world.agents.forEach((agent) => {
       if (
@@ -212,10 +374,13 @@ export function PixiWorld({ save, compact }: Props) {
       }
       const localX = (agent.position.x - startX) * tileSize
       const localY = (agent.position.y - startY) * tileSize
+      const shadow = new Graphics()
+      shadow.ellipse(localX + tileSize / 2, localY + tileSize * 0.78, tileSize * 0.22, tileSize * 0.12).fill(0x020617, 0.35)
+      agents.addChild(shadow)
       const body = new Graphics()
-      body.circle(localX + tileSize / 2, localY + tileSize / 2, tileSize * 0.32).fill(agent.color)
+      body.circle(localX + tileSize / 2, localY + tileSize / 2, tileSize * 0.26).fill(agent.color)
       if (agent.role === 'admin') {
-        body.circle(localX + tileSize / 2, localY + tileSize / 2, tileSize * 0.38).stroke({ color: 0xf8fafc, width: 2 })
+        body.circle(localX + tileSize / 2, localY + tileSize / 2, tileSize * 0.32).stroke({ color: 0xf8fafc, width: 2 })
       }
       agents.addChild(body)
       if (!compact) {
@@ -267,6 +432,28 @@ export function PixiWorld({ save, compact }: Props) {
   }
 
   return <div ref={hostRef} className="h-full min-h-[320px] w-full overflow-hidden rounded-2xl" />
+}
+
+function renderTownDecorations(container: Container, save: WorldSave, startX: number, startY: number, tileSize: number) {
+  const townX = save.world.townCenter.x - startX
+  const townY = save.world.townCenter.y - startY
+
+  const fenceSegments: Array<[number, number, number]> = [
+    [townX - 4, townY + 4, FENCE_LEFT],
+    [townX - 3, townY + 4, FENCE_MID],
+    [townX - 2, townY + 4, FENCE_MID],
+    [townX - 1, townY + 4, FENCE_RIGHT],
+    [townX + 2, townY - 2, FENCE_LEFT],
+    [townX + 3, townY - 2, FENCE_MID],
+    [townX + 4, townY - 2, FENCE_RIGHT],
+    [townX - 4, townY - 3, FENCE_POST],
+    [townX + 5, townY + 3, ROPE_TILE]
+  ]
+
+  fenceSegments.forEach(([x, y, tileId]) => {
+    if (x < -2 || y < -2) return
+    addTileSprite(container, tinyTownTilePath(tileId), x * tileSize, y * tileSize, tileSize)
+  })
 }
 
 function DomWorldFallback({

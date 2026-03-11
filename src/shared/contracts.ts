@@ -33,6 +33,7 @@ export const appSettingsSchema = z.object({
   model: z.string().default('gpt-4.1-mini'),
   baseUrl: z.string().default('https://api.openai.com/v1'),
   groupId: z.string().optional().default(''),
+  pixelLabApiKey: z.string().default(''),
   offlineMode: z.boolean().default(false),
   compactMode: z.boolean().default(false)
 })
@@ -228,6 +229,39 @@ export const chatResponseSchema = z.object({
 })
 export type ChatResponse = z.infer<typeof chatResponseSchema>
 
+export const pixelLabBalanceSchema = z.object({
+  credits: z
+    .object({
+      type: z.string(),
+      usd: z.number()
+    })
+    .optional(),
+  subscription: z
+    .object({
+      type: z.string(),
+      generations: z.number(),
+      total: z.number()
+    })
+    .optional()
+})
+export type PixelLabBalance = z.infer<typeof pixelLabBalanceSchema>
+
+export const pixelLabGenerateRequestSchema = z.object({
+  prompt: z.string().min(3),
+  width: z.number().int().min(16).max(64).default(32),
+  height: z.number().int().min(16).max(64).default(32),
+  noBackground: z.boolean().default(true)
+})
+export type PixelLabGenerateRequest = z.infer<typeof pixelLabGenerateRequestSchema>
+
+export const pixelLabGenerateResponseSchema = z.object({
+  success: z.boolean(),
+  imageDataUrl: z.string().optional(),
+  savedPath: z.string().optional(),
+  error: z.string().optional()
+})
+export type PixelLabGenerateResponse = z.infer<typeof pixelLabGenerateResponseSchema>
+
 export const defaultAuthorityLimits: AuthorityLimits = {
   maxAgents: 8,
   maxBuildings: 30,
@@ -243,6 +277,7 @@ export const defaultAppSettings: AppSettings = {
   model: 'gpt-4.1-mini',
   baseUrl: 'https://api.openai.com/v1',
   groupId: '',
+  pixelLabApiKey: '',
   offlineMode: false,
   compactMode: false
 }

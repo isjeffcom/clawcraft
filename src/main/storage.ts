@@ -89,6 +89,7 @@ export function getSettings(): AppSettings {
     ...defaultAppSettings,
     ...raw,
     apiKey: decodeSecret(raw.apiKey),
+    pixelLabApiKey: decodeSecret(raw.pixelLabApiKey),
     baseUrl: raw.baseUrl || createDefaultBaseUrl(provider),
     model:
       raw.model && !(provider === 'minimax' && raw.model.startsWith('gpt-'))
@@ -107,7 +108,8 @@ export function saveSettings(input: AppSettings): AppSettings {
   writePersistedState({
     settings: {
       ...parsed,
-      apiKey: encodeSecret(parsed.apiKey)
+      apiKey: encodeSecret(parsed.apiKey),
+      pixelLabApiKey: encodeSecret(parsed.pixelLabApiKey)
     }
   })
   return parsed

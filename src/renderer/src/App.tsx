@@ -315,6 +315,15 @@ function OnboardingScreen({
                     onChange={(groupId) => setSettings((current) => ({ ...current, groupId }))}
                   />
                 ) : null}
+                <FieldInput
+                  label="PixelLab API Key（可选）"
+                  type="password"
+                  value={settings.pixelLabApiKey}
+                  onChange={(pixelLabApiKey) => setSettings((current) => ({ ...current, pixelLabApiKey }))}
+                />
+                <p className="text-xs text-slate-400">
+                  PixelLab 是可选素材生成能力。你可以先不填，后续在世界内的“素材工坊”继续补填并生成建筑/角色/道具像素图。
+                </p>
                 {error ? <div className="rounded-2xl border border-danger/30 bg-danger/10 p-3 text-sm text-danger-300">{error}</div> : null}
                 <div className="flex justify-between gap-3">
                   <Button variant="flat" onPress={() => setStep('mode')}>
@@ -335,6 +344,7 @@ function OnboardingScreen({
                   <Metric label="Provider" value={settings.offlineMode ? '本地启发式 AI' : settings.provider.toUpperCase()} />
                   <Metric label="API 状态" value={settings.offlineMode ? '不需要 API Key' : settings.apiKey ? '已填写' : '未填写'} />
                   <Metric label="当前模型" value={settings.model} />
+                  <Metric label="PixelLab" value={settings.pixelLabApiKey ? '已填写，可生成素材' : '未填写（可稍后配置）'} />
                 </div>
                 {!providerReady ? (
                   <div className="rounded-2xl border border-danger/30 bg-danger/10 p-3 text-sm text-danger-300">
@@ -639,6 +649,12 @@ function WorldWorkspace({
   const [chatInput, setChatInput] = useState('')
   const [sending, setSending] = useState(false)
   const [renderMode, setRenderMode] = useState<'2d' | '3d'>('2d')
+  const [assetPrompt, setAssetPrompt] = useState('top-down pixel tiny town storage hut with blue roof')
+  const [assetLoading, setAssetLoading] = useState(false)
+  const [assetError, setAssetError] = useState('')
+  const [assetPreview, setAssetPreview] = useState<string>('')
+  const [assetSavedPath, setAssetSavedPath] = useState('')
+  const [pixelLabBalance, setPixelLabBalance] = useState<{ credits?: { usd: number }; subscription?: { generations: number; total: number } } | null>(null)
 
   useEffect(() => {
     const runtime = new GameRuntime(initialSave)
@@ -697,6 +713,41 @@ function WorldWorkspace({
       setChatInput('')
     } finally {
       setSending(false)
+    }
+  }
+
+  async function refreshPixelLabBalance() {
+    setAssetError('')
+    try {
+      const balance = await window.clawcraft.getPixelLabBalance()
+      setPixelLabBalance(balance)
+    } catch (error) {
+      setAssetError(error instanceof Error ? error.message : String(error))
+    }
+  }
+
+  async function generatePixelAsset() {
+    if (!assetPrompt.trim()) return
+    setAssetLoading(true)
+    setAssetError('')
+    try {
+      const result = await window.clawcraft.generatePixelLabImage({
+        prompt: assetPrompt,
+        width: 32,
+        height: 32,
+        noBackground: true
+      })
+
+      if (!result.success) {
+        setAssetError(result.error ?? 'PixelLab 生成失败。')
+        return
+      }
+
+      setAssetPreview(result.imageDataUrl ?? '')
+      setAssetSavedPath(result.savedPath ?? '')
+      await refreshPixelLabBalance()
+    } finally {
+      setAssetLoading(false)
     }
   }
 
@@ -810,10 +861,109 @@ function WorldWorkspace({
               <Tab key="token" title="Token Dashboard">
                 <TokenDashboard save={save} />
               </Tab>
+              <Tab key="asset-lab" title="素材工坊">
+                <AssetLabPanel
+                  prompt={assetPrompt}
+                  onPromptChange={setAssetPrompt}
+                  onGenerate={() => void generatePixelAsset()}
+                  onRefreshBalance={() => void refreshPixelLabBalance()}
+                  loading={assetLoading}
+                  error={assetError}
+                  preview={assetPreview}
+                  savedPath={assetSavedPath}
+                  balance={pixelLabBalance}
+                />
+              </Tab>
             </Tabs>
           </CardBody>
         </Card>
       </div>
+    </div>
+  )
+}
+
+function AssetLabPanel({
+  prompt,
+  onPromptChange,
+  onGenerate,
+  onRefreshBalance,
+  loading,
+  error,
+  preview,
+  savedPath,
+  balance
+}: {
+  prompt: string
+  onPromptChange: (value: string) => void
+  onGenerate: () => void
+  onRefreshBalance: () => void
+  loading: boolean
+  error: string
+  preview: string
+  savedPath: string
+  balance: { credits?: { usd: number }; subscription?: { generations: number; total: number } } | null
+}) {
+  const quickPrompts = [
+    'top-down pixel tiny town admin lobster worker',
+    'top-down pixel tiny town lumber camp with storage',
+    'top-down pixel stone quarry sign and crates',
+    'top-down pixel cozy workshop with blue roof'
+  ]
+
+  return (
+    <div className="grid gap-4">
+      <div className="rounded-2xl border border-white/10 bg-slate-950/30 p-4">
+        <h3 className="text-base font-semibold text-white">PixelLab 运行时素材工坊</h3>
+        <p className="mt-2 text-sm text-slate-300">
+          这里会调用你填写的 PixelLab API Key 生成像素素材。适合临时补角色、建筑、道具概念图，再落到本地资源目录。
+        </p>
+      </div>
+
+      <FieldInput label="素材提示词" value={prompt} onChange={onPromptChange} />
+
+      <div className="flex flex-wrap gap-2">
+        {quickPrompts.map((item) => (
+          <button
+            key={item}
+            type="button"
+            onClick={() => onPromptChange(item)}
+            className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-300 transition hover:border-white/20"
+          >
+            {item}
+          </button>
+        ))}
+      </div>
+
+      <div className="flex flex-wrap gap-3">
+        <Button color="primary" isLoading={loading} onPress={onGenerate}>
+          生成 32x32 透明 PNG
+        </Button>
+        <Button variant="flat" onPress={onRefreshBalance}>
+          查询 PixelLab 余额
+        </Button>
+      </div>
+
+      {balance ? (
+        <div className="grid gap-3 md:grid-cols-2">
+          <Metric label="余额（USD）" value={`${balance.credits?.usd ?? 0}`} />
+          <Metric label="剩余生成次数" value={`${balance.subscription?.generations ?? 0}/${balance.subscription?.total ?? 0}`} />
+        </div>
+      ) : null}
+
+      {error ? <div className="rounded-2xl border border-danger/30 bg-danger/10 p-3 text-sm text-danger-300">{error}</div> : null}
+
+      {preview ? (
+        <div className="rounded-2xl border border-white/10 bg-slate-950/30 p-4">
+          <div className="mb-3 text-sm text-slate-300">生成预览</div>
+          <div className="flex flex-wrap items-start gap-4">
+            <img src={preview} alt="PixelLab generated asset preview" className="h-32 w-32 rounded-2xl border border-white/10 bg-slate-900 object-contain p-2" />
+            <div className="max-w-sm text-xs text-slate-400">
+              <div>已保存到：</div>
+              <div className="mt-1 break-all text-slate-200">{savedPath}</div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }
