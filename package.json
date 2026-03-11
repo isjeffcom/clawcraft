@@ -28,7 +28,6 @@
   "dependencies": {
     "@heroui/react": "^2.8.10",
     "clsx": "^2.1.1",
-    "electron-store": "^11.0.2",
     "framer-motion": "^12.35.2",
     "openai": "^6.27.0",
     "pixi.js": "^8.17.0",

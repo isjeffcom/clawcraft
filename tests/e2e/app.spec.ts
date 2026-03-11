@@ -1,0 +1,37 @@
+import { rmSync } from 'node:fs'
+import { join } from 'node:path'
+import { _electron as electron, expect, test } from '@playwright/test'
+
+test('onboarding to world flow works offline', async () => {
+  const configDir = join(process.cwd(), '.tmp', 'playwright-config')
+  rmSync(configDir, { recursive: true, force: true })
+
+  const electronApp = await electron.launch({
+    args: [join(process.cwd(), 'out/main/index.js')],
+    env: {
+      ...process.env,
+      XDG_CONFIG_HOME: configDir
+    }
+  })
+
+  try {
+    const window = await electronApp.firstWindow()
+    await expect(window.getByText('配置管理员世界脑')).toBeVisible()
+    await window.getByText('启用离线演示模式（不联网时也能让 Agent 运行）').click()
+    await window.getByRole('button', { name: '进入存档大厅' }).click()
+    await expect(window.getByText('创建新世界')).toBeVisible()
+
+    await window.getByRole('button', { name: '创建世界并交给 Admin Agent' }).click()
+    await expect(window.getByText('默认大目标')).toBeVisible()
+
+    await window.getByRole('tab', { name: '神谕对话' }).click()
+    await window.getByLabel('给 Admin Agent 的命令').fill('优先扩张木材产量，并继续建设城镇。')
+    await window.getByRole('button', { name: '下达神谕' }).click()
+    await expect(window.getByText('已记录你的神谕')).toBeVisible()
+
+    await window.getByRole('tab', { name: 'Token Dashboard' }).click()
+    await expect(window.getByText('最近 6 条调用')).toBeVisible()
+  } finally {
+    await electronApp.close()
+  }
+})

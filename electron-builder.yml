@@ -22,4 +22,4 @@ linux:
   target:
     - AppImage
 asar: true
-publish: never
+publish: []

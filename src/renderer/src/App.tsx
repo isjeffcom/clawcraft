@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   Button,
   Card,
@@ -389,6 +389,7 @@ function WorldWorkspace({
   const [save, setSave] = useState(initialSave)
   const [chatInput, setChatInput] = useState('')
   const [sending, setSending] = useState(false)
+  const [renderMode, setRenderMode] = useState<'2d' | '3d'>('2d')
 
   useEffect(() => {
     const runtime = new GameRuntime(initialSave)
@@ -401,7 +402,6 @@ function WorldWorkspace({
     }
   }, [initialSave])
 
-  const tokenSummary = useMemo(() => summarizeTokenUsage(save.world.tokenLedger), [save.world.tokenLedger])
   const admin = save.world.agents.find((agent) => agent.role === 'admin') ?? save.world.agents[0]
 
   async function persist(nextSave: WorldSave) {
@@ -503,8 +503,28 @@ function WorldWorkspace({
           <Metric label="实时任务" value={admin.currentTask} />
         </div>
 
+        <div className="mb-4 flex items-center gap-2">
+          <Button size="sm" color={renderMode === '2d' ? 'primary' : 'default'} variant="flat" onPress={() => setRenderMode('2d')}>
+            2D 俯视角
+          </Button>
+          <Button size="sm" color={renderMode === '3d' ? 'warning' : 'default'} variant="flat" onPress={() => setRenderMode('3d')}>
+            3D（占位）
+          </Button>
+        </div>
+
         <div className="min-h-0 flex-1 rounded-[1.5rem] border border-white/10 bg-slate-950/40 p-2">
-          <PixiWorld save={save} compact={false} />
+          {renderMode === '2d' ? (
+            <PixiWorld save={save} compact={false} />
+          ) : (
+            <div className="grid h-full place-items-center rounded-[1.2rem] bg-slate-950/50">
+              <div className="max-w-lg text-center">
+                <div className="text-lg font-semibold text-white">3D 世界尚未开放</div>
+                <p className="mt-3 text-sm text-slate-300">
+                  当前版本默认以 2D 俯视角保证桌宠观察体验。世界逻辑与渲染已分层，后续可以接入 3D renderer adapter。
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

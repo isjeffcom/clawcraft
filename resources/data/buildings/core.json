@@ -1,0 +1,26 @@
+[
+  {
+    "id": "campfire",
+    "label": "营火",
+    "cost": { "wood": 6, "stone": 0 },
+    "purpose": "城镇中心与早期聚落标识"
+  },
+  {
+    "id": "storage",
+    "label": "仓储",
+    "cost": { "wood": 8, "stone": 4 },
+    "purpose": "稳定资源循环"
+  },
+  {
+    "id": "hut",
+    "label": "小屋",
+    "cost": { "wood": 10, "stone": 2 },
+    "purpose": "为新的小 Agent 提供定居点"
+  },
+  {
+    "id": "workshop",
+    "label": "工坊",
+    "cost": { "wood": 14, "stone": 8 },
+    "purpose": "扩展中期生产能力"
+  }
+]

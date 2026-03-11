@@ -1,7 +1,6 @@
-import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { app, safeStorage } from 'electron'
-import Store from 'electron-store'
 import {
   appSettingsSchema,
   bootstrapStateSchema,
@@ -20,13 +19,6 @@ import { createNewWorldSave } from '../shared/game'
 type PersistedState = {
   settings: AppSettings
 }
-
-const appStore = new Store<PersistedState>({
-  name: 'clawcraft-settings',
-  defaults: {
-    settings: defaultAppSettings
-  }
-})
 
 function encodeSecret(value: string): string {
   if (!value) return ''
@@ -58,12 +50,39 @@ function getSavesDirectory(): string {
   return directory
 }
 
+function getSettingsPath(): string {
+  const directory = app.getPath('userData')
+  mkdirSync(directory, { recursive: true })
+  return join(directory, 'settings.json')
+}
+
 function getSavePath(id: string): string {
   return join(getSavesDirectory(), `${id}.json`)
 }
 
+function readPersistedState(): PersistedState {
+  const path = getSettingsPath()
+  if (!existsSync(path)) {
+    return {
+      settings: defaultAppSettings
+    }
+  }
+
+  try {
+    return JSON.parse(readFileSync(path, 'utf8')) as PersistedState
+  } catch {
+    return {
+      settings: defaultAppSettings
+    }
+  }
+}
+
+function writePersistedState(state: PersistedState): void {
+  writeFileSync(getSettingsPath(), JSON.stringify(state, null, 2), 'utf8')
+}
+
 export function getSettings(): AppSettings {
-  const raw = appStore.get('settings') ?? defaultAppSettings
+  const raw = readPersistedState().settings ?? defaultAppSettings
   const parsed = appSettingsSchema.parse({
     ...defaultAppSettings,
     ...raw,
@@ -78,9 +97,11 @@ export function saveSettings(input: AppSettings): AppSettings {
     ...input,
     baseUrl: input.baseUrl || createDefaultBaseUrl(input.provider)
   })
-  appStore.set('settings', {
-    ...parsed,
-    apiKey: encodeSecret(parsed.apiKey)
+  writePersistedState({
+    settings: {
+      ...parsed,
+      apiKey: encodeSecret(parsed.apiKey)
+    }
   })
   return parsed
 }

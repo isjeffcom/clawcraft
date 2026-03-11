@@ -1,0 +1,6 @@
+{
+  "id": "sheep",
+  "label": "羊",
+  "persona": "温顺、耐心、偏耕作与资源维持。",
+  "defaultGoal": "建设城镇并发展更多小 Agent"
+}

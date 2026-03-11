@@ -1,0 +1,14 @@
+[
+  {
+    "id": "settlement-worker",
+    "description": "用于资源采集、回城交付、工地建设的默认行为脚本。"
+  },
+  {
+    "id": "resource-node",
+    "description": "用于树木和石头等资源节点的默认交互脚本。"
+  },
+  {
+    "id": "decorative-loop",
+    "description": "用于未来装饰性实体或待机动画的占位脚本。"
+  }
+]

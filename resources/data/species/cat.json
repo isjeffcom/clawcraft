@@ -1,0 +1,6 @@
+{
+  "id": "cat",
+  "label": "猫",
+  "persona": "敏捷、好奇、倾向扩张和探索新地块。",
+  "defaultGoal": "建设城镇并发展更多小 Agent"
+}
