@@ -45,7 +45,7 @@ const SIGN_TILE = 128
 const ROPE_TILE = 129
 
 function tinyTownTilePath(id: number): string {
-  return `/assets/kenney/tiny-town/tiles/tile_${id.toString().padStart(4, '0')}.png`
+  return `assets/kenney/tiny-town/tiles/tile_${id.toString().padStart(4, '0')}.png`
 }
 
 const PRELOAD_ASSETS = [
@@ -184,7 +184,7 @@ export function PixiWorld({ save, compact }: Props) {
   const hostRef = useRef<HTMLDivElement | null>(null)
   const appRef = useRef<Application | null>(null)
   const resizeObserverRef = useRef<ResizeObserver | null>(null)
-  const [rendererMode, setRendererMode] = useState<'pixi' | 'fallback'>('pixi')
+  const [rendererMode, setRendererMode] = useState<'loading' | 'pixi' | 'fallback'>('loading')
   const layersRef = useRef<{
     terrain: Container
     resources: Container
@@ -204,6 +204,7 @@ export function PixiWorld({ save, compact }: Props) {
       const height = Math.max(240, Math.floor(rect.height || host.clientHeight || 640))
 
       try {
+        setRendererMode('loading')
         await Assets.load(PRELOAD_ASSETS)
         const app = new Application()
         await app.init({
@@ -272,7 +273,7 @@ export function PixiWorld({ save, compact }: Props) {
     const visibleCols = compact ? 24 : 36
     const visibleRows = compact ? 18 : 24
     const admin = save.world.agents.find((agent) => agent.role === 'admin') ?? save.world.agents[0]
-    const cameraCenter = compact ? admin.position : save.world.townCenter
+    const cameraCenter = compact ? admin.position : save.world.player.position
     const startX = Math.max(0, Math.min(save.world.width - visibleCols, cameraCenter.x - Math.floor(visibleCols / 2)))
     const startY = Math.max(0, Math.min(save.world.height - visibleRows, cameraCenter.y - Math.floor(visibleRows / 2)))
 
@@ -302,7 +303,7 @@ export function PixiWorld({ save, compact }: Props) {
     const visibleCols = Math.max(12, Math.floor(viewWidth / tileSize))
     const visibleRows = Math.max(10, Math.floor(viewHeight / tileSize))
     const admin = save.world.agents.find((agent) => agent.role === 'admin') ?? save.world.agents[0]
-    const cameraCenter = compact ? admin.position : save.world.townCenter
+    const cameraCenter = compact ? admin.position : save.world.player.position
     const startX = Math.max(0, Math.min(save.world.width - visibleCols, cameraCenter.x - Math.floor(visibleCols / 2)))
     const startY = Math.max(0, Math.min(save.world.height - visibleRows, cameraCenter.y - Math.floor(visibleRows / 2)))
 
@@ -398,10 +399,39 @@ export function PixiWorld({ save, compact }: Props) {
       }
     })
 
+    if (
+      save.world.player.position.x >= startX &&
+      save.world.player.position.x < startX + visibleCols &&
+      save.world.player.position.y >= startY &&
+      save.world.player.position.y < startY + visibleRows
+    ) {
+      const localX = (save.world.player.position.x - startX) * tileSize
+      const localY = (save.world.player.position.y - startY) * tileSize
+      const halo = new Graphics()
+      halo.circle(localX + tileSize / 2, localY + tileSize / 2, tileSize * 0.34).stroke({ color: 0xfacc15, width: 3 })
+      agents.addChild(halo)
+      const body = new Graphics()
+      body.circle(localX + tileSize / 2, localY + tileSize / 2, tileSize * 0.2).fill(0xfef08a)
+      agents.addChild(body)
+      if (!compact) {
+        const playerLabel = new Text({
+          text: 'P',
+          style: {
+            fill: '#1f2937',
+            fontSize: Math.max(8, tileSize * 0.38),
+            fontWeight: '700'
+          }
+        })
+        playerLabel.x = localX + tileSize * 0.32
+        playerLabel.y = localY + tileSize * 0.17
+        agents.addChild(playerLabel)
+      }
+    }
+
     const info = new Text({
       text: compact
         ? `Admin：${admin.currentTask}`
-        : `${save.meta.name}｜库存 木:${save.world.stockpile.wood} 石:${save.world.stockpile.stone}｜Agent:${save.world.agents.length}｜建筑:${save.world.buildings.length}`,
+        : `${save.meta.name}｜库存 木:${save.world.stockpile.wood} 石:${save.world.stockpile.stone}｜玩家 ${save.world.player.position.x},${save.world.player.position.y}｜Agent:${save.world.agents.length}｜建筑:${save.world.buildings.length}`,
       style: {
         fill: '#e2e8f0',
         fontSize: compact ? 12 : 14,
@@ -428,10 +458,30 @@ export function PixiWorld({ save, compact }: Props) {
   }
 
   if (rendererMode === 'fallback') {
-    return <DomWorldFallback save={save} compact={compact} {...fallbackView} />
+    return (
+      <div className="relative h-full min-h-[320px] w-full overflow-hidden rounded-2xl">
+        <div className="absolute left-3 top-3 z-30 rounded-full border border-amber-400/30 bg-amber-400/10 px-3 py-1 text-xs font-medium text-amber-200">
+          渲染后备模式
+        </div>
+        <DomWorldFallback save={save} compact={compact} {...fallbackView} />
+      </div>
+    )
   }
 
-  return <div ref={hostRef} className="h-full min-h-[320px] w-full overflow-hidden rounded-2xl" />
+  return (
+    <div className="relative h-full min-h-[320px] w-full overflow-hidden rounded-2xl">
+      {rendererMode === 'loading' ? (
+        <div className="absolute left-3 top-3 z-30 rounded-full border border-sky-400/30 bg-sky-400/10 px-3 py-1 text-xs font-medium text-sky-200">
+          Pixi 资源加载中
+        </div>
+      ) : (
+        <div className="absolute left-3 top-3 z-30 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-xs font-medium text-emerald-200">
+          Pixi 精灵渲染
+        </div>
+      )}
+      <div ref={hostRef} className="h-full min-h-[320px] w-full overflow-hidden rounded-2xl" />
+    </div>
+  )
 }
 
 function renderTownDecorations(container: Container, save: WorldSave, startX: number, startY: number, tileSize: number) {
@@ -475,9 +525,6 @@ function DomWorldFallback({
 }) {
   return (
     <div className="relative h-full min-h-[320px] w-full overflow-hidden rounded-2xl border border-cyan-400/15 bg-[#081225]">
-      <div className="absolute left-3 top-3 z-20 rounded-full border border-amber-400/30 bg-amber-400/10 px-3 py-1 text-xs font-medium text-amber-200">
-        渲染后备模式
-      </div>
       <div
         className="grid"
         style={{
@@ -601,8 +648,30 @@ function DomWorldFallback({
         )
       })}
 
+      {save.world.player.position.x >= startX &&
+      save.world.player.position.x < startX + visibleCols &&
+      save.world.player.position.y >= startY &&
+      save.world.player.position.y < startY + visibleRows ? (
+        <div
+          className="absolute flex items-center justify-center rounded-full text-[10px] font-bold"
+          style={{
+            left: (save.world.player.position.x - startX) * tileSize + tileSize * 0.18,
+            top: (save.world.player.position.y - startY) * tileSize + tileSize * 0.18,
+            width: tileSize * 0.64,
+            height: tileSize * 0.64,
+            background: '#fef08a',
+            color: '#1f2937',
+            border: '2px solid #facc15'
+          }}
+        >
+          P
+        </div>
+      ) : null}
+
       <div className="absolute left-3 right-3 top-10 z-20 rounded-2xl bg-slate-950/55 px-3 py-2 text-xs text-slate-100">
-        {compact ? `Admin：${admin.currentTask}` : `${save.meta.name}｜库存 木:${save.world.stockpile.wood} 石:${save.world.stockpile.stone}`}
+        {compact
+          ? `Admin：${admin.currentTask}`
+          : `${save.meta.name}｜库存 木:${save.world.stockpile.wood} 石:${save.world.stockpile.stone}｜玩家 ${save.world.player.position.x},${save.world.player.position.y}`}
       </div>
     </div>
   )

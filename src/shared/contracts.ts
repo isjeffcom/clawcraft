@@ -27,6 +27,12 @@ export const pointSchema = z.object({
 })
 export type Point = z.infer<typeof pointSchema>
 
+export const playerStateSchema = z.object({
+  name: z.string(),
+  position: pointSchema
+})
+export type PlayerState = z.infer<typeof playerStateSchema>
+
 export const appSettingsSchema = z.object({
   provider: providerKindSchema.default('openai'),
   apiKey: z.string().default(''),
@@ -175,6 +181,7 @@ export const worldStateSchema = z.object({
   time: z.number().nonnegative(),
   focus: focusGoalSchema,
   townCenter: pointSchema,
+  player: playerStateSchema,
   stockpile: inventorySchema,
   terrain: z.array(z.array(terrainTypeSchema)),
   resources: z.array(resourceNodeSchema),

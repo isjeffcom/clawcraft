@@ -31,6 +31,7 @@ test('onboarding to world flow works offline', async () => {
     await window.getByRole('button', { name: '创建世界并交给 Admin Agent' }).click()
     await expect(window.getByText('默认大目标')).toBeVisible()
     await expect(window.getByRole('button', { name: '2D 俯视角' })).toBeVisible()
+    await expect(window.getByText('玩家位置')).toBeVisible()
 
     await window.getByRole('tab', { name: '神谕对话' }).click()
     await window.getByLabel('给 Admin Agent 的命令').fill('优先扩张木材产量，并继续建设城镇。')

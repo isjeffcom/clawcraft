@@ -379,7 +379,7 @@ function OnboardingScreen({
           <div className="panel rounded-3xl p-5">
             <h2 className="text-lg font-semibold text-white">稳定性策略</h2>
             <img
-              src="/assets/kenney/tiny-town-preview.png"
+              src="assets/kenney/tiny-town-preview.png"
               alt="Kenney Tiny Town 预览"
               className="mt-4 h-32 w-full rounded-2xl border border-white/10 object-cover"
             />
@@ -485,7 +485,7 @@ function SaveLobby({
         </CardHeader>
         <CardBody className="gap-4">
           <img
-            src="/assets/kenney/tiny-town-preview.png"
+            src="assets/kenney/tiny-town-preview.png"
             alt="Kenney Tiny Town 俯视角参考"
             className="h-32 w-full rounded-3xl border border-white/10 object-cover"
           />
@@ -667,6 +667,40 @@ function WorldWorkspace({
     }
   }, [initialSave])
 
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      const target = event.target as HTMLElement | null
+      if (target && ['INPUT', 'TEXTAREA'].includes(target.tagName)) return
+
+      const direction =
+        event.key === 'ArrowUp' || event.key.toLowerCase() === 'w'
+          ? { x: 0, y: -1 }
+          : event.key === 'ArrowDown' || event.key.toLowerCase() === 's'
+            ? { x: 0, y: 1 }
+            : event.key === 'ArrowLeft' || event.key.toLowerCase() === 'a'
+              ? { x: -1, y: 0 }
+              : event.key === 'ArrowRight' || event.key.toLowerCase() === 'd'
+                ? { x: 1, y: 0 }
+                : null
+
+      if (!direction) return
+      event.preventDefault()
+
+      setSave((current) => {
+        const nextX = Math.max(0, Math.min(current.world.width - 1, current.world.player.position.x + direction.x))
+        const nextY = Math.max(0, Math.min(current.world.height - 1, current.world.player.position.y + direction.y))
+        const next = structuredClone(current)
+        next.world.player.position.x = nextX
+        next.world.player.position.y = nextY
+        runtimeRef.current?.replaceSave(next)
+        return next
+      })
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [])
+
   const admin = save.world.agents.find((agent) => agent.role === 'admin') ?? save.world.agents[0]
 
   async function persist(nextSave: WorldSave) {
@@ -801,6 +835,8 @@ function WorldWorkspace({
           <Metric label="当前焦点" value={focusLabels[save.world.focus]} />
           <Metric label="城镇库存" value={`木 ${save.world.stockpile.wood} / 石 ${save.world.stockpile.stone}`} />
           <Metric label="实时任务" value={admin.currentTask} />
+          <Metric label="玩家位置" value={`${save.world.player.position.x}, ${save.world.player.position.y}`} />
+          <Metric label="玩家操作" value="WASD / 方向键移动观察者" />
         </div>
 
         <div className="mb-4 flex items-center gap-2">

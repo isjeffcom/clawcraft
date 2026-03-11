@@ -24,6 +24,7 @@ describe('shared game simulation', () => {
     expect(() => worldSaveSchema.parse(save)).not.toThrow()
     expect(save.world.agents[0]?.role).toBe('admin')
     expect(save.world.focus).toBe('expand')
+    expect(save.world.player.position.y).toBeGreaterThanOrEqual(save.world.townCenter.y)
   })
 
   it('lets the admin build a town over time', () => {
