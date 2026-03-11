@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { worldSaveSchema } from '../../src/shared/contracts'
+import { createDefaultModel, getRecommendedModels, worldSaveSchema } from '../../src/shared/contracts'
 import {
   applyFocus,
   createEstimatedUsage,
@@ -151,5 +151,12 @@ describe('shared game simulation', () => {
     expect(adminScript?.version).toBeGreaterThan(1)
     expect(adminScript?.params.tidyBias).toBeGreaterThan(0.8)
     expect(updated.world.scriptEvents.at(-1)?.summary).toContain('tidy')
+  })
+
+  it('uses provider-specific default and recommended models', () => {
+    expect(createDefaultModel('openai')).toBe('gpt-4.1-mini')
+    expect(createDefaultModel('minimax')).toBe('M2-her')
+    expect(getRecommendedModels('minimax')).toContain('MiniMax-M2.5')
+    expect(getRecommendedModels('minimax')).toContain('M2-her')
   })
 })

@@ -12,7 +12,7 @@ import {
   Textarea
 } from '@heroui/react'
 import type { AgentSpecies, AppSettings, FocusGoal, SaveDraft, SaveMeta, WorldSave } from '@shared/contracts'
-import { createDefaultBaseUrl } from '@shared/contracts'
+import { createDefaultBaseUrl, createDefaultModel, getRecommendedModels } from '@shared/contracts'
 import {
   addTokenUsage,
   appendChat,
@@ -239,13 +239,30 @@ function OnboardingScreen({
                     active={settings.provider === 'openai'}
                     title="OpenAI"
                     subtitle="官方 OpenAI Chat Completions"
-                    onPress={() => setSettings((current) => ({ ...current, provider: 'openai', baseUrl: createDefaultBaseUrl('openai') }))}
+                    onPress={() =>
+                      setSettings((current) => ({
+                        ...current,
+                        provider: 'openai',
+                        baseUrl: createDefaultBaseUrl('openai'),
+                        model:
+                          current.provider === 'minimax' || !current.model || current.model.startsWith('M2') || current.model.startsWith('MiniMax-')
+                            ? createDefaultModel('openai')
+                            : current.model
+                      }))
+                    }
                   />
                   <ProviderCard
                     active={settings.provider === 'minimax'}
                     title="MiniMax"
-                    subtitle="OpenAI 兼容模式"
-                    onPress={() => setSettings((current) => ({ ...current, provider: 'minimax', baseUrl: createDefaultBaseUrl('minimax') }))}
+                    subtitle="OpenAI 兼容模式（官方文档推荐 M2-her / MiniMax-M2.* 系列）"
+                    onPress={() =>
+                      setSettings((current) => ({
+                        ...current,
+                        provider: 'minimax',
+                        baseUrl: createDefaultBaseUrl('minimax'),
+                        model: current.provider !== 'minimax' || !current.model || current.model.startsWith('gpt-') ? createDefaultModel('minimax') : current.model
+                      }))
+                    }
                   />
                 </div>
                 <FieldInput
@@ -265,6 +282,31 @@ function OnboardingScreen({
                     value={settings.baseUrl}
                     onChange={(baseUrl) => setSettings((current) => ({ ...current, baseUrl }))}
                   />
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-slate-950/30 p-3">
+                  <div className="text-xs uppercase tracking-[0.2em] text-slate-400">推荐模型</div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {getRecommendedModels(settings.provider).map((model) => (
+                      <button
+                        key={model}
+                        type="button"
+                        onClick={() => setSettings((current) => ({ ...current, model }))}
+                        className={`rounded-full border px-3 py-1 text-xs transition ${
+                          settings.model === model
+                            ? 'border-cyan-400 bg-cyan-400/10 text-cyan-200'
+                            : 'border-white/10 bg-white/5 text-slate-300 hover:border-white/20'
+                        }`}
+                      >
+                        {model}
+                      </button>
+                    ))}
+                  </div>
+                  {settings.provider === 'minimax' ? (
+                    <p className="mt-3 text-xs text-slate-400">
+                      MiniMax 官方文档里，OpenAI 兼容聊天场景可用 <span className="text-slate-200">M2-her</span>；
+                      通用/更强模型可用 <span className="text-slate-200">MiniMax-M2.5</span>、<span className="text-slate-200">MiniMax-M2</span> 等。
+                    </p>
+                  ) : null}
                 </div>
                 {settings.provider === 'minimax' ? (
                   <FieldInput
@@ -292,7 +334,7 @@ function OnboardingScreen({
                   <Metric label="运行模式" value={settings.offlineMode ? '离线演示模式' : '在线模式'} />
                   <Metric label="Provider" value={settings.offlineMode ? '本地启发式 AI' : settings.provider.toUpperCase()} />
                   <Metric label="API 状态" value={settings.offlineMode ? '不需要 API Key' : settings.apiKey ? '已填写' : '未填写'} />
-                  <Metric label="默认模型" value={settings.model} />
+                  <Metric label="当前模型" value={settings.model} />
                 </div>
                 {!providerReady ? (
                   <div className="rounded-2xl border border-danger/30 bg-danger/10 p-3 text-sm text-danger-300">

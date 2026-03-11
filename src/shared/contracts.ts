@@ -254,3 +254,13 @@ export function estimateTokenCount(text: string): number {
 export function createDefaultBaseUrl(provider: ProviderKind): string {
   return provider === 'minimax' ? 'https://api.minimax.io/v1' : 'https://api.openai.com/v1'
 }
+
+export function createDefaultModel(provider: ProviderKind): string {
+  return provider === 'minimax' ? 'M2-her' : 'gpt-4.1-mini'
+}
+
+export function getRecommendedModels(provider: ProviderKind): string[] {
+  return provider === 'minimax'
+    ? ['M2-her', 'MiniMax-M2.5', 'MiniMax-M2.5-highspeed', 'MiniMax-M2', 'MiniMax-M2.1']
+    : ['gpt-4.1-mini', 'gpt-4.1', 'gpt-4o-mini']
+}

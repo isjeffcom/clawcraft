@@ -5,6 +5,7 @@ import {
   appSettingsSchema,
   bootstrapStateSchema,
   createDefaultBaseUrl,
+  createDefaultModel,
   defaultAppSettings,
   saveDraftSchema,
   type AppSettings,
@@ -83,11 +84,16 @@ function writePersistedState(state: PersistedState): void {
 
 export function getSettings(): AppSettings {
   const raw = readPersistedState().settings ?? defaultAppSettings
+  const provider = raw.provider ?? defaultAppSettings.provider
   const parsed = appSettingsSchema.parse({
     ...defaultAppSettings,
     ...raw,
     apiKey: decodeSecret(raw.apiKey),
-    baseUrl: raw.baseUrl || createDefaultBaseUrl(raw.provider ?? defaultAppSettings.provider)
+    baseUrl: raw.baseUrl || createDefaultBaseUrl(provider),
+    model:
+      raw.model && !(provider === 'minimax' && raw.model.startsWith('gpt-'))
+        ? raw.model
+        : createDefaultModel(provider)
   })
   return parsed
 }
@@ -95,7 +101,8 @@ export function getSettings(): AppSettings {
 export function saveSettings(input: AppSettings): AppSettings {
   const parsed = appSettingsSchema.parse({
     ...input,
-    baseUrl: input.baseUrl || createDefaultBaseUrl(input.provider)
+    baseUrl: input.baseUrl || createDefaultBaseUrl(input.provider),
+    model: input.model || createDefaultModel(input.provider)
   })
   writePersistedState({
     settings: {
