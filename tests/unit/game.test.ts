@@ -5,6 +5,8 @@ import {
   createNewWorldSave,
   deriveSaveMeta,
   evaluateAuthority,
+  getAuthoritySnapshot,
+  migrateWorldSave,
   summarizeTokenTrend,
   summarizeTokenUsage,
   tickWorld
@@ -73,5 +75,65 @@ describe('shared game simulation', () => {
     expect(meta.tokenTotal).toBeGreaterThan(0)
     expect(meta.focus).toBe(save.world.focus)
     expect(trend).toHaveLength(4)
+  })
+
+  it('migrates legacy saves and derives authority snapshots', () => {
+    const legacy = {
+      version: 1,
+      meta: {
+        id: 'legacy-world',
+        name: 'Legacy World',
+        species: 'lobster',
+        createdAt: 1,
+        updatedAt: 2,
+        lastPlayedAt: 3,
+        seed: 44,
+        agentCount: 1,
+        buildingCount: 0,
+        description: 'old schema'
+      },
+      settings: {},
+      world: {
+        width: 64,
+        height: 64,
+        seed: 44,
+        time: 3,
+        townCenter: { x: 32, y: 32 },
+        terrain: Array.from({ length: 64 }, () => Array.from({ length: 64 }, () => 'grass')),
+        resources: [],
+        buildings: [],
+        agents: [
+          {
+            id: 'admin',
+            name: 'Admin',
+            species: 'lobster',
+            role: 'admin',
+            position: { x: 32, y: 32 },
+            inventory: { wood: 0, stone: 0 },
+            currentTask: 'idle',
+            plan: 'build town',
+            focus: 'expand',
+            memories: [],
+            memorySummary: [],
+            color: '#fff'
+          }
+        ],
+        chatLog: [],
+        authority: {
+          maxAgents: 8,
+          maxBuildings: 30,
+          maxMemoriesPerAgent: 24,
+          maxQueuedTasks: 16,
+          mapWidth: 64,
+          mapHeight: 64
+        }
+      }
+    }
+
+    const migrated = migrateWorldSave(legacy)
+    const authority = getAuthoritySnapshot(migrated)
+    expect(migrated.meta.focus).toBe('expand')
+    expect(migrated.meta.tokenTotal).toBe(0)
+    expect(authority.agentLoad).toBeGreaterThan(0)
   })
 })

@@ -13,6 +13,7 @@ import {
   type SaveMeta,
   type TokenUsageRecord,
   type WorldSave,
+  focusGoalSchema,
   defaultAuthorityLimits,
   estimateTokenCount
 } from './contracts'
@@ -142,6 +143,10 @@ function getNextBuilding(world: WorldSave['world']): { kind: BuildingKind; posit
     return { kind: 'storage', position: { x: town.x + 2, y: town.y }, wood: 8, stone: 4 }
   }
 
+  if (world.focus === 'tidy' && count('workshop') === 0) {
+    return { kind: 'workshop', position: { x: town.x, y: town.y + 3 }, wood: 14, stone: 8 }
+  }
+
   if (count('hut') < 2) {
     return {
       kind: 'hut',
@@ -212,6 +217,7 @@ function maybeSpawnNpc(save: WorldSave, admin: AgentState): void {
 
   if (huts === 0) return
   if (npcCount >= huts) return
+  if (save.world.focus === 'tidy') return
   if (save.world.agents.length >= save.world.authority.maxAgents) return
   if (!spendStockpile(save.world, 8, 2)) return
 
@@ -608,5 +614,81 @@ export function deriveSaveMeta(save: WorldSave, now = Date.now()): SaveMeta {
     tokenTotal: tokenSummary.totalTokens,
     lastHourTokens: tokenSummary.lastHour,
     focus: save.world.focus
+  }
+}
+
+export function migrateWorldSave(raw: unknown): WorldSave {
+  const candidate = raw as Partial<WorldSave> & {
+    meta?: Partial<SaveMeta>
+    settings?: { focus?: unknown }
+    world?: Partial<WorldSave['world']>
+  }
+
+  const focus = focusGoalSchema.safeParse(candidate.world?.focus ?? candidate.settings?.focus ?? candidate.meta?.focus).success
+    ? focusGoalSchema.parse(candidate.world?.focus ?? candidate.settings?.focus ?? candidate.meta?.focus)
+    : 'expand'
+
+  const normalized = {
+    version: 1,
+    ...candidate,
+    meta: {
+      id: candidate.meta?.id ?? createId('world'),
+      name: candidate.meta?.name ?? 'Recovered World',
+      species: candidate.meta?.species ?? 'lobster',
+      createdAt: candidate.meta?.createdAt ?? Date.now(),
+      updatedAt: candidate.meta?.updatedAt ?? Date.now(),
+      lastPlayedAt: candidate.meta?.lastPlayedAt ?? candidate.meta?.updatedAt ?? Date.now(),
+      seed: candidate.meta?.seed ?? candidate.world?.seed ?? 0,
+      agentCount: candidate.meta?.agentCount ?? candidate.world?.agents?.length ?? 1,
+      buildingCount: candidate.meta?.buildingCount ?? candidate.world?.buildings?.length ?? 0,
+      tokenTotal: candidate.meta?.tokenTotal ?? 0,
+      lastHourTokens: candidate.meta?.lastHourTokens ?? 0,
+      focus,
+      description: candidate.meta?.description ?? '由迁移器恢复的自治世界。'
+    },
+    settings: {
+      focus
+    },
+    world: {
+      width: candidate.world?.width ?? defaultAuthorityLimits.mapWidth,
+      height: candidate.world?.height ?? defaultAuthorityLimits.mapHeight,
+      seed: candidate.world?.seed ?? candidate.meta?.seed ?? 0,
+      time: candidate.world?.time ?? 0,
+      focus,
+      townCenter: candidate.world?.townCenter ?? { x: 32, y: 32 },
+      stockpile: candidate.world?.stockpile ?? { wood: 0, stone: 0 },
+      terrain: candidate.world?.terrain ?? [],
+      resources: candidate.world?.resources ?? [],
+      buildings: candidate.world?.buildings ?? [],
+      agents: candidate.world?.agents ?? [],
+      chatLog: candidate.world?.chatLog ?? [],
+      tokenLedger: candidate.world?.tokenLedger ?? [],
+      authority: {
+        ...defaultAuthorityLimits,
+        ...candidate.world?.authority
+      }
+    }
+  }
+
+  const parsed = normalized as WorldSave
+  return {
+    ...parsed,
+    meta: deriveSaveMeta(parsed, parsed.meta.updatedAt || Date.now())
+  }
+}
+
+export function getAuthoritySnapshot(save: WorldSave) {
+  const agentLoad = save.world.agents.length / save.world.authority.maxAgents
+  const buildingLoad = save.world.buildings.length / save.world.authority.maxBuildings
+  const memoryCapacity = save.world.authority.maxMemoriesPerAgent * Math.max(save.world.agents.length, 1)
+  const memoryUsage = save.world.agents.reduce((sum, agent) => sum + agent.memories.length + agent.memorySummary.length, 0)
+  const memoryLoad = memoryUsage / memoryCapacity
+
+  return {
+    agentLoad,
+    buildingLoad,
+    memoryLoad,
+    memoryUsage,
+    memoryCapacity
   }
 }

@@ -21,6 +21,7 @@ import {
   applyFocus,
   createEstimatedUsage,
   evaluateAuthority,
+  getAuthoritySnapshot,
   getWorldSummary,
   parseFocusFromMessage,
   summarizeTokenTrend,
@@ -622,6 +623,7 @@ function WorldWorkspace({
 function OverviewPanel({ save }: { save: WorldSave }) {
   const admin = save.world.agents.find((agent) => agent.role === 'admin') ?? save.world.agents[0]
   const npcCount = save.world.agents.filter((agent) => agent.role === 'npc').length
+  const authority = getAuthoritySnapshot(save)
   return (
     <div className="grid gap-4">
       <div className="grid gap-3 md:grid-cols-2">
@@ -629,6 +631,27 @@ function OverviewPanel({ save }: { save: WorldSave }) {
         <Metric label="城镇发展" value={`建筑 ${save.world.buildings.length}，NPC ${npcCount}`} />
         <Metric label="Authority 上限" value={`Agent ${save.world.authority.maxAgents} / 建筑 ${save.world.authority.maxBuildings}`} />
         <Metric label="记忆压缩" value={`${admin.memorySummary.length} 条摘要，${admin.memories.length} 条活动记忆`} />
+      </div>
+
+      <Divider className="bg-white/10" />
+
+      <div className="grid gap-3">
+        <h3 className="text-base font-semibold text-white">Authority 稳定性快照</h3>
+        <AuthorityBar
+          label={`Agent 负载 ${save.world.agents.length}/${save.world.authority.maxAgents}`}
+          value={authority.agentLoad}
+          tone="linear-gradient(90deg, #06b6d4, #60a5fa)"
+        />
+        <AuthorityBar
+          label={`建筑负载 ${save.world.buildings.length}/${save.world.authority.maxBuildings}`}
+          value={authority.buildingLoad}
+          tone="linear-gradient(90deg, #d946ef, #8b5cf6)"
+        />
+        <AuthorityBar
+          label={`记忆负载 ${authority.memoryUsage}/${authority.memoryCapacity}`}
+          value={authority.memoryLoad}
+          tone="linear-gradient(90deg, #f59e0b, #fb923c)"
+        />
       </div>
 
       <Divider className="bg-white/10" />
@@ -762,6 +785,29 @@ function Metric({ label, value }: { label: string; value: string }) {
     <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
       <div className="text-xs uppercase tracking-[0.2em] text-slate-400">{label}</div>
       <div className="mt-2 text-sm font-medium text-white">{value}</div>
+    </div>
+  )
+}
+
+function AuthorityBar({
+  label,
+  value,
+  tone
+}: {
+  label: string
+  value: number
+  tone: string
+}) {
+  const percent = Math.max(0, Math.min(100, Math.round(value * 100)))
+  return (
+    <div className="rounded-2xl border border-white/10 bg-slate-950/30 p-3">
+      <div className="flex items-center justify-between gap-3 text-sm">
+        <span className="text-slate-200">{label}</span>
+        <span className="text-slate-300">{percent}%</span>
+      </div>
+      <div className="token-bar mt-2">
+        <span style={{ width: `${percent}%`, background: tone }} />
+      </div>
     </div>
   )
 }

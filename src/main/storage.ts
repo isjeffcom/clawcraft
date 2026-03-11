@@ -14,7 +14,7 @@ import {
   type WorldSave,
   worldSaveSchema
 } from '../shared/contracts'
-import { createNewWorldSave, deriveSaveMeta } from '../shared/game'
+import { createNewWorldSave, deriveSaveMeta, migrateWorldSave } from '../shared/game'
 
 type PersistedState = {
   settings: AppSettings
@@ -110,17 +110,25 @@ export function listSaves(): SaveMeta[] {
   const directory = getSavesDirectory()
   return readdirSync(directory)
     .filter((filename) => filename.endsWith('.json'))
-    .map((filename) => {
-      const text = readFileSync(join(directory, filename), 'utf8')
-      const save = worldSaveSchema.parse(JSON.parse(text))
-      return save.meta
+    .flatMap((filename) => {
+      try {
+        const text = readFileSync(join(directory, filename), 'utf8')
+        const raw = JSON.parse(text)
+        const save = worldSaveSchema.safeParse(raw)
+        const migrated = save.success ? save.data : migrateWorldSave(raw)
+        return [deriveSaveMeta(migrated, migrated.meta.updatedAt)]
+      } catch {
+        return []
+      }
     })
     .sort((a, b) => b.lastPlayedAt - a.lastPlayedAt)
 }
 
 export function loadSave(id: string): WorldSave {
   const text = readFileSync(getSavePath(id), 'utf8')
-  return worldSaveSchema.parse(JSON.parse(text))
+  const raw = JSON.parse(text)
+  const parsed = worldSaveSchema.safeParse(raw)
+  return parsed.success ? parsed.data : migrateWorldSave(raw)
 }
 
 export function writeSave(save: WorldSave): SaveMeta {
