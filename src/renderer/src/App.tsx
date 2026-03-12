@@ -941,11 +941,11 @@ function WorldWorkspace({
         )}
 
         <div className="pointer-events-none absolute inset-0">
-          <div className="pointer-events-auto absolute left-4 top-4 max-w-[min(44rem,calc(100%-24rem))] panel rounded-3xl px-4 py-3">
+          <div className="pointer-events-auto absolute left-4 top-4 max-w-[min(36rem,calc(100%-22rem))] panel rounded-3xl px-4 py-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h2 className="text-xl font-semibold text-white">{save.meta.name}</h2>
-                <p className="mt-1 text-xs text-slate-300">按 E 靠近管理员交谈，点击地图或用 WASD 控制玩家观察者。</p>
+                <h2 className="text-lg font-semibold text-white">{save.meta.name}</h2>
+                <p className="mt-1 text-[11px] text-slate-300">E 交谈 · 点击/WASD 移动</p>
               </div>
               <div className="flex flex-wrap gap-2">
                 <Button color="primary" variant="flat" onPress={() => void persist(save)}>
@@ -960,7 +960,7 @@ function WorldWorkspace({
               </div>
             </div>
 
-            <div className="mt-3 flex flex-wrap gap-2">
+            <div className="mt-3 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
               <Button size="sm" color={renderMode === '2d' ? 'primary' : 'default'} variant="flat" onPress={() => setRenderMode('2d')}>
                 2D 俯视角
               </Button>
@@ -988,7 +988,7 @@ function WorldWorkspace({
             </div>
           </div>
 
-          <div className="pointer-events-auto absolute right-4 top-4 bottom-4 w-[340px]">
+          <div className="pointer-events-auto absolute right-4 top-4 bottom-4 w-[320px]">
             <Card className="panel h-full rounded-[2rem]">
               <CardBody className="h-full overflow-hidden">
                 <Tabs aria-label="World panels" className="h-full min-h-0">
@@ -1034,12 +1034,12 @@ function WorldWorkspace({
             </Card>
           </div>
 
-          <div className="pointer-events-none absolute bottom-4 left-4 right-[372px] flex justify-start">
+          <div className="pointer-events-none absolute bottom-4 left-4 right-[340px] flex justify-start">
             {renderMode === '2d' ? (
               conversationOpen && canTalkToAdmin ? (
-                <div className="pointer-events-auto panel w-full max-w-md rounded-3xl p-4">
-                  <div className="mb-2 text-sm font-semibold text-white">已靠近 Admin Agent</div>
-                  <div className="mb-3 text-xs text-slate-300">按 E 可收起对话框。点击地图或用 WASD / 方向键移动。</div>
+                <div className="pointer-events-auto panel w-full max-w-sm rounded-3xl p-4">
+                  <div className="mb-2 text-sm font-semibold text-white">与 Admin 交谈</div>
+                  <div className="mb-3 text-xs text-slate-300">按 E 收起 · 站得够近时才会出现</div>
                   <Textarea
                     label="对管理员说"
                     value={chatInput}

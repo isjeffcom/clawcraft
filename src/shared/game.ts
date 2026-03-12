@@ -67,11 +67,24 @@ function moveStep(position: Point, target: Point, width: number, height: number)
 }
 
 function clearTownArea(terrain: string[][], townCenter: Point): void {
-  for (let y = townCenter.y - 3; y <= townCenter.y + 3; y += 1) {
-    for (let x = townCenter.x - 3; x <= townCenter.x + 3; x += 1) {
+  for (let y = townCenter.y - 6; y <= townCenter.y + 6; y += 1) {
+    for (let x = townCenter.x - 8; x <= townCenter.x + 8; x += 1) {
       if (terrain[y]?.[x]) {
         terrain[y][x] = 'grass'
       }
+    }
+  }
+}
+
+function stampStarterHamletTerrain(terrain: string[][], townCenter: Point): void {
+  for (let y = townCenter.y - 8; y <= townCenter.y + 8; y += 1) {
+    for (let x = townCenter.x - 10; x <= townCenter.x + 10; x += 1) {
+      if (!terrain[y]?.[x]) continue
+      const dx = Math.abs(x - townCenter.x)
+      const dy = Math.abs(y - townCenter.y)
+      if (dx <= 9 && dy <= 7) terrain[y][x] = 'grass'
+      if ((x === townCenter.x || y === townCenter.y) && dx <= 8 && dy <= 7) terrain[y][x] = 'soil'
+      if ((x === townCenter.x + 4 || x === townCenter.x - 4) && dy <= 3) terrain[y][x] = 'soil'
     }
   }
 }
@@ -434,6 +447,7 @@ export function createNewWorldSave(draft: SaveDraft): WorldSave {
 
   const townCenter = { x: Math.floor(width / 2), y: Math.floor(height / 2) }
   clearTownArea(terrain, townCenter)
+  stampStarterHamletTerrain(terrain, townCenter)
 
   const resources: ResourceNode[] = []
   for (let y = 0; y < height; y += 1) {

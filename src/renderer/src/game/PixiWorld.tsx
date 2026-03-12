@@ -219,6 +219,7 @@ export function PixiWorld({ save, compact, onMovePlayer, playerTarget }: Props) 
   const appRef = useRef<Application | null>(null)
   const resizeObserverRef = useRef<ResizeObserver | null>(null)
   const [rendererMode, setRendererMode] = useState<'loading' | 'pixi' | 'fallback'>('loading')
+  const [containerSize, setContainerSize] = useState({ width: 960, height: 640 })
   const viewStateRef = useRef({ startX: 0, startY: 0, tileSize: compact ? 12 : 18, visibleCols: 0, visibleRows: 0 })
   const layersRef = useRef<{
     terrain: Container
@@ -227,6 +228,22 @@ export function PixiWorld({ save, compact, onMovePlayer, playerTarget }: Props) 
     agents: Container
     hud: Container
   } | null>(null)
+
+  useEffect(() => {
+    if (!hostRef.current) return
+    const host = hostRef.current
+    const update = () => {
+      const rect = host.getBoundingClientRect()
+      setContainerSize({
+        width: Math.max(320, Math.floor(rect.width || host.clientWidth || 960)),
+        height: Math.max(240, Math.floor(rect.height || host.clientHeight || 640))
+      })
+    }
+    update()
+    const observer = new ResizeObserver(() => update())
+    observer.observe(host)
+    return () => observer.disconnect()
+  }, [])
 
   useEffect(() => {
     let disposed = false
@@ -317,9 +334,9 @@ export function PixiWorld({ save, compact, onMovePlayer, playerTarget }: Props) 
   }
 
   const fallbackView = useMemo(() => {
-    const tileSize = compact ? 12 : 18
-    const visibleCols = compact ? 24 : 36
-    const visibleRows = compact ? 18 : 24
+    const tileSize = compact ? 12 : Math.max(18, Math.min(24, Math.floor(Math.min(containerSize.width / 42, containerSize.height / 24))))
+    const visibleCols = compact ? 24 : Math.max(28, Math.floor(containerSize.width / tileSize))
+    const visibleRows = compact ? 18 : Math.max(18, Math.floor(containerSize.height / tileSize))
     const admin = save.world.agents.find((agent) => agent.role === 'admin') ?? save.world.agents[0]
     const cameraCenter = compact ? admin.position : save.world.player.position
     const startX = Math.max(0, Math.min(save.world.width - visibleCols, cameraCenter.x - Math.floor(visibleCols / 2)))
@@ -333,7 +350,7 @@ export function PixiWorld({ save, compact, onMovePlayer, playerTarget }: Props) 
       startY,
       admin
     }
-  }, [compact, save])
+  }, [compact, containerSize.height, containerSize.width, save])
 
   function renderWorld() {
     if (!appRef.current || !layersRef.current) return
@@ -540,7 +557,7 @@ export function PixiWorld({ save, compact, onMovePlayer, playerTarget }: Props) 
 
   if (rendererMode === 'fallback') {
     return (
-      <div className="relative h-full min-h-[320px] w-full overflow-hidden rounded-2xl">
+      <div ref={hostRef} className="relative h-full min-h-[320px] w-full overflow-hidden rounded-2xl">
         <div className="absolute left-3 top-3 z-30 rounded-full border border-amber-400/30 bg-amber-400/10 px-3 py-1 text-xs font-medium text-amber-200">
           Tiny Town 精灵渲染
         </div>
@@ -550,7 +567,7 @@ export function PixiWorld({ save, compact, onMovePlayer, playerTarget }: Props) 
   }
 
   return (
-    <div className="relative h-full min-h-[320px] w-full overflow-hidden rounded-2xl">
+    <div ref={hostRef} className="relative h-full min-h-[320px] w-full overflow-hidden rounded-2xl" onClick={(event) => handleMoveFromPointer(event.clientX, event.clientY)}>
       {rendererMode === 'loading' ? (
         <div className="absolute left-3 top-3 z-30 rounded-full border border-sky-400/30 bg-sky-400/10 px-3 py-1 text-xs font-medium text-sky-200">
           Pixi 资源加载中
@@ -560,11 +577,7 @@ export function PixiWorld({ save, compact, onMovePlayer, playerTarget }: Props) 
           Pixi / Tiny Town 精灵渲染
         </div>
       )}
-      <div
-        ref={hostRef}
-        className="h-full min-h-[320px] w-full overflow-hidden rounded-2xl"
-        onClick={(event) => handleMoveFromPointer(event.clientX, event.clientY)}
-      />
+      <div className="h-full min-h-[320px] w-full overflow-hidden rounded-2xl" />
     </div>
   )
 }
