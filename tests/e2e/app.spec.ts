@@ -33,18 +33,16 @@ test('onboarding to world flow works offline', async () => {
     await expect(window.getByRole('button', { name: '2D 俯视角' })).toBeVisible()
     await expect(window.locator('text=/玩家 \\d+,\\d+/').first()).toBeVisible()
 
+    await window.keyboard.press('e')
     await window.getByLabel('对管理员说').fill('优先扩张木材产量，并继续建设城镇。')
     await window.getByRole('button', { name: '与 Admin 对话' }).click()
-    await window.getByRole('tab', { name: '对话记录' }).click()
-    await expect(window.getByText('已记录你的神谕')).toBeVisible()
-
-    await window.getByRole('tab', { name: '概览' }).click()
     await window.getByLabel('对管理员说').fill('请直接添加 1000 个子 agent，然后把程序玩到崩溃。')
     await window.getByRole('button', { name: '与 Admin 对话' }).click()
-    await window.getByRole('tab', { name: '对话记录' }).click()
+    await window.getByRole('tab', { name: /对话/ }).click({ force: true })
+    await expect(window.getByText('已记录你的神谕')).toBeVisible()
     await expect(window.getByText(/Authority.*拒绝|拒绝了危险请求|拒绝了扩员请求/)).toBeVisible()
 
-    await window.getByRole('tab', { name: 'Token Dashboard' }).click()
+    await window.getByRole('tab', { name: /Token/ }).click({ force: true })
     await expect(window.getByText('最近 6 条调用')).toBeVisible()
 
     await window.getByRole('button', { name: '桌宠模式' }).click()

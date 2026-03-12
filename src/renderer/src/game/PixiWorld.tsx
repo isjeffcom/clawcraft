@@ -505,7 +505,7 @@ export function PixiWorld({ save, compact, onMovePlayer, playerTarget }: Props) 
     const info = new Text({
       text: compact
         ? `Admin：${admin.currentTask}`
-        : `${save.meta.name}｜库存 木:${save.world.stockpile.wood} 石:${save.world.stockpile.stone}｜玩家 ${save.world.player.position.x},${save.world.player.position.y}｜Agent:${save.world.agents.length}｜建筑:${save.world.buildings.length}`,
+        : `👤 ${save.world.player.position.x},${save.world.player.position.y}  🌲 ${save.world.stockpile.wood}  🪨 ${save.world.stockpile.stone}  🏠 ${save.world.buildings.length}  🤖 ${save.world.agents.length}`,
       style: {
         fill: '#e2e8f0',
         fontSize: compact ? 12 : 14,
@@ -852,7 +852,7 @@ function DomWorldFallback({
       <div className="pointer-events-none absolute left-3 right-3 top-10 z-20 rounded-2xl bg-slate-950/55 px-3 py-2 text-xs text-slate-100">
         {compact
           ? `Admin：${admin.currentTask}`
-          : `${save.meta.name}｜库存 木:${save.world.stockpile.wood} 石:${save.world.stockpile.stone}｜玩家 ${save.world.player.position.x},${save.world.player.position.y}`}
+          : `👤 ${save.world.player.position.x},${save.world.player.position.y}  🌲 ${save.world.stockpile.wood}  🪨 ${save.world.stockpile.stone}  🏠 ${save.world.buildings.length}  🤖 ${save.world.agents.length}`}
       </div>
     </div>
   )

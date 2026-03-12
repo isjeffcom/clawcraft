@@ -669,6 +669,7 @@ function WorldWorkspace({
   const [sending, setSending] = useState(false)
   const [renderMode, setRenderMode] = useState<'2d' | '3d'>('2d')
   const [playerTarget, setPlayerTarget] = useState<{ x: number; y: number } | null>(null)
+  const [conversationOpen, setConversationOpen] = useState(false)
   const [assetPrompt, setAssetPrompt] = useState('top-down pixel tiny town storage hut with blue roof')
   const [assetLoading, setAssetLoading] = useState(false)
   const [assetError, setAssetError] = useState('')
@@ -687,6 +688,9 @@ function WorldWorkspace({
     }
   }, [initialSave])
 
+  const admin = save.world.agents.find((agent) => agent.role === 'admin') ?? save.world.agents[0]
+  const canTalkToAdmin = tileDistance(save.world.player.position, admin.position) <= 2
+
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       const target = event.target as HTMLElement | null
@@ -702,6 +706,12 @@ function WorldWorkspace({
               : event.key === 'ArrowRight' || event.key.toLowerCase() === 'd'
                 ? { x: 1, y: 0 }
                 : null
+
+      if (!direction && event.key.toLowerCase() === 'e' && canTalkToAdmin) {
+        event.preventDefault()
+        setConversationOpen((current) => !current)
+        return
+      }
 
       if (!direction) return
       event.preventDefault()
@@ -720,7 +730,7 @@ function WorldWorkspace({
 
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [])
+  }, [canTalkToAdmin])
 
   useEffect(() => {
     if (!playerTarget) return
@@ -747,8 +757,11 @@ function WorldWorkspace({
     return () => window.clearInterval(timer)
   }, [playerTarget])
 
-  const admin = save.world.agents.find((agent) => agent.role === 'admin') ?? save.world.agents[0]
-  const canTalkToAdmin = tileDistance(save.world.player.position, admin.position) <= 2
+  useEffect(() => {
+    if (!canTalkToAdmin && conversationOpen) {
+      setConversationOpen(false)
+    }
+  }, [canTalkToAdmin, conversationOpen])
 
   async function persist(nextSave: WorldSave) {
     setSave(nextSave)
@@ -881,11 +894,11 @@ function WorldWorkspace({
         )}
 
         <div className="pointer-events-none absolute inset-0">
-          <div className="pointer-events-auto absolute left-4 top-4 max-w-[min(58rem,calc(100%-25rem))] panel rounded-3xl px-5 py-4">
+          <div className="pointer-events-auto absolute left-4 top-4 max-w-[min(44rem,calc(100%-24rem))] panel rounded-3xl px-4 py-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h2 className="text-2xl font-semibold text-white">{save.meta.name}</h2>
-                <p className="mt-1 text-sm text-slate-300">跟着玩家观察这个自进化的小镇世界，靠近 Admin 后交谈，推动它继续建设。</p>
+                <h2 className="text-xl font-semibold text-white">{save.meta.name}</h2>
+                <p className="mt-1 text-xs text-slate-300">按 E 靠近管理员交谈，点击地图或用 WASD 控制玩家观察者。</p>
               </div>
               <div className="flex flex-wrap gap-2">
                 <Button color="primary" variant="flat" onPress={() => void persist(save)}>
@@ -900,7 +913,7 @@ function WorldWorkspace({
               </div>
             </div>
 
-            <div className="mt-4 flex flex-wrap gap-2">
+            <div className="mt-3 flex flex-wrap gap-2">
               <Button size="sm" color={renderMode === '2d' ? 'primary' : 'default'} variant="flat" onPress={() => setRenderMode('2d')}>
                 2D 俯视角
               </Button>
@@ -922,19 +935,22 @@ function WorldWorkspace({
               <Chip color="default" variant="flat">
                 🏠 建筑 {save.world.buildings.length} / 🤖 Agent {save.world.agents.length}
               </Chip>
+              <Chip color="danger" variant="flat">
+                ⚒ {admin.currentTask}
+              </Chip>
             </div>
           </div>
 
-          <div className="pointer-events-auto absolute right-4 top-4 bottom-4 w-[360px]">
+          <div className="pointer-events-auto absolute right-4 top-4 bottom-4 w-[340px]">
             <Card className="panel h-full rounded-[2rem]">
               <CardBody className="h-full overflow-hidden">
                 <Tabs aria-label="World panels" className="h-full min-h-0">
-                  <Tab key="overview" title="概览">
+                  <Tab key="overview" title="📋 概览">
                     <div className="h-full overflow-y-auto pr-1">
                       <OverviewPanel save={save} />
                     </div>
                   </Tab>
-                  <Tab key="dialogue-log" title="对话记录">
+                  <Tab key="dialogue-log" title="💬 对话">
                     <div className="h-full max-h-[520px] overflow-auto rounded-2xl border border-white/10 bg-slate-950/30 p-3">
                       <div className="space-y-3">
                         {save.world.chatLog.slice(-16).map((message) => (
@@ -946,12 +962,12 @@ function WorldWorkspace({
                       </div>
                     </div>
                   </Tab>
-                  <Tab key="token" title="Token Dashboard">
+                  <Tab key="token" title="📊 Token">
                     <div className="h-full overflow-y-auto pr-1">
                       <TokenDashboard save={save} />
                     </div>
                   </Tab>
-                  <Tab key="asset-lab" title="素材工坊">
+                  <Tab key="asset-lab" title="🎨 工坊">
                     <div className="h-full overflow-y-auto pr-1">
                       <AssetLabPanel
                         prompt={assetPrompt}
@@ -971,12 +987,12 @@ function WorldWorkspace({
             </Card>
           </div>
 
-          <div className="pointer-events-none absolute bottom-4 left-4 right-[392px] flex justify-start">
+          <div className="pointer-events-none absolute bottom-4 left-4 right-[372px] flex justify-start">
             {renderMode === '2d' ? (
-              canTalkToAdmin ? (
+              conversationOpen && canTalkToAdmin ? (
                 <div className="pointer-events-auto panel w-full max-w-md rounded-3xl p-4">
                   <div className="mb-2 text-sm font-semibold text-white">已靠近 Admin Agent</div>
-                  <div className="mb-3 text-xs text-slate-300">点击地图或用 WASD / 方向键移动。这里只在靠近管理员时出现。</div>
+                  <div className="mb-3 text-xs text-slate-300">按 E 可收起对话框。点击地图或用 WASD / 方向键移动。</div>
                   <Textarea
                     label="对管理员说"
                     value={chatInput}
@@ -992,7 +1008,7 @@ function WorldWorkspace({
                 </div>
               ) : (
                 <div className="pointer-events-auto rounded-2xl border border-white/10 bg-slate-950/65 px-4 py-3 text-sm text-slate-200">
-                  靠近 Admin Agent 后才能发起对话。当前距离：{tileDistance(save.world.player.position, admin.position)} 格
+                  {canTalkToAdmin ? '按 E 与 Admin Agent 交谈' : `靠近 Admin Agent 后才能对话，当前距离：${tileDistance(save.world.player.position, admin.position)} 格`}
                 </div>
               )
             ) : null}

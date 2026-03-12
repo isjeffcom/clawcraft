@@ -101,7 +101,7 @@ function createAgent(name: string, species: AgentSpecies, role: 'admin' | 'npc',
       wood: 0,
       stone: 0
     },
-    currentTask: role === 'admin' ? '观察荒野并筹建城镇' : '等待管理员派工',
+    currentTask: role === 'admin' ? '勘察城镇' : '待命',
     actionTicks: 0,
     plan: role === 'admin' ? '建设城镇并派生更多小 Agent' : '协助管理员收集与建设',
     focus: 'expand',
@@ -311,14 +311,14 @@ function advanceAgent(save: WorldSave, agent: AgentState, index: number): void {
   const { world } = save
 
   if (depositAtTown(world, agent)) {
-    agent.currentTask = '把资源存入城镇库存'
+    agent.currentTask = '交付资源'
     addMemory(agent, world.authority, 'action', '我把资源送回了城镇。')
     return
   }
 
   const carrying = agent.inventory.wood + agent.inventory.stone
   if (carrying > 0) {
-    agent.currentTask = '返回城镇交付资源'
+    agent.currentTask = '回城'
     agent.actionTicks = 0
     agent.position = moveStep(agent.position, world.townCenter, world.width, world.height)
     return
@@ -354,7 +354,7 @@ function advanceAgent(save: WorldSave, agent: AgentState, index: number): void {
   const resource = findNearestResource(world, agent.position, desiredResource)
 
   if (!resource) {
-    agent.currentTask = '巡逻并观察荒野'
+    agent.currentTask = '巡逻'
     agent.actionTicks = 0
     agent.position = moveStep(
       agent.position,
@@ -368,7 +368,7 @@ function advanceAgent(save: WorldSave, agent: AgentState, index: number): void {
     return
   }
 
-  agent.currentTask = desiredResource === 'tree' ? '前往森林砍树' : '前往采石点搬运石料'
+  agent.currentTask = desiredResource === 'tree' ? '砍树' : '采石'
   const moved = moveStep(agent.position, resource.position, world.width, world.height)
   if (!samePoint(moved, agent.position)) {
     agent.actionTicks = 0
@@ -460,7 +460,7 @@ export function createNewWorldSave(draft: SaveDraft): WorldSave {
   const admin = createAgent('Admin', draft.species, 'admin', townCenter)
   addMemory(admin, defaultAuthorityLimits, 'plan', '我的默认目标是建设城镇并发展更多小 Agent。')
   const starterNpc = createAgent('Settler 1', 'cat', 'npc', { x: townCenter.x + 1, y: townCenter.y + 1 })
-  starterNpc.currentTask = '在小镇里巡逻并协助管理员'
+  starterNpc.currentTask = '巡逻'
   starterNpc.plan = '维护已有定居点，等待更多建设任务'
   const starterBuildings: BuildingState[] = [
     {
