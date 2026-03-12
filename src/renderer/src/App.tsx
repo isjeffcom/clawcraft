@@ -7,8 +7,6 @@ import {
   Chip,
   Divider,
   Spinner,
-  Tab,
-  Tabs,
   Textarea
 } from '@heroui/react'
 import type { AgentSpecies, AppSettings, FocusGoal, SaveDraft, SaveMeta, WorldSave } from '@shared/contracts'
@@ -19,7 +17,6 @@ import {
   applyFocus,
   createEstimatedUsage,
   evaluateAuthority,
-  getAuthoritySnapshot,
   getWorldSummary,
   parseFocusFromMessage,
   summarizeTokenTrend,
@@ -61,6 +58,11 @@ export function App() {
     setSaves(nextSaves)
   }
 
+  async function toggleCompactMode() {
+    const mode = await window.clawcraft.toggleWindowMode(compactMode ? 'standard' : 'compact')
+    setCompactMode(mode === 'compact')
+  }
+
   if (phase === 'loading' || !bootstrap) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -73,7 +75,7 @@ export function App() {
 
   return (
     <div className="flex h-screen flex-col">
-      <WindowTitleBar compactMode={compactMode} />
+      <WindowTitleBar compactMode={compactMode} showCompactToggle={phase === 'world'} onToggleCompact={() => void toggleCompactMode()} />
       {phase === 'onboarding' ? (
         <OnboardingScreen
           initialSettings={bootstrap.settings}
@@ -123,33 +125,46 @@ export function App() {
   )
 }
 
-function WindowTitleBar({ compactMode }: { compactMode: boolean }) {
+function WindowTitleBar({
+  compactMode,
+  showCompactToggle,
+  onToggleCompact
+}: {
+  compactMode: boolean
+  showCompactToggle: boolean
+  onToggleCompact: () => void
+}) {
   const isMac = typeof navigator !== 'undefined' && /Mac/i.test(navigator.platform || navigator.userAgent)
   return (
     <div className="drag-region flex h-12 items-center justify-between border-b border-white/10 px-4 text-sm text-slate-200">
-      <div className="flex items-center gap-3">
+      <div className={`flex items-center gap-3 ${isMac ? 'pl-2' : ''}`}>
         {isMac ? (
           <div className="no-drag flex items-center gap-2">
             <button type="button" className="window-dot bg-rose-500" onClick={() => void window.clawcraft.closeWindow()} aria-label="关闭窗口" />
             <button type="button" className="window-dot bg-amber-400" onClick={() => void window.clawcraft.minimizeWindow()} aria-label="最小化窗口" />
             <button type="button" className="window-dot bg-emerald-500" onClick={() => void window.clawcraft.toggleWindowMaximize()} aria-label="切换窗口尺寸" />
+            {showCompactToggle ? (
+              <button type="button" className="window-dot bg-cyan-400" onClick={onToggleCompact} aria-label="切换桌宠模式" />
+            ) : null}
           </div>
         ) : null}
         <span className="text-base font-semibold tracking-wide text-cyan-300">Clawcraft</span>
-        <Chip size="sm" variant="flat" color={compactMode ? 'warning' : 'primary'}>
-          {compactMode ? '桌宠模式' : '标准模式'}
-        </Chip>
       </div>
       {!isMac ? (
         <div className="no-drag flex items-center gap-2">
+          {showCompactToggle ? (
+            <button type="button" className="window-icon-button" onClick={onToggleCompact} aria-label={compactMode ? '退出桌宠模式' : '进入桌宠模式'}>
+              ◲
+            </button>
+          ) : null}
           <Button size="sm" variant="flat" onPress={() => void window.clawcraft.minimizeWindow()}>
-            最小化
+            ─
           </Button>
           <Button size="sm" variant="flat" onPress={() => void window.clawcraft.toggleWindowMaximize()}>
-            还原/最大化
+            □
           </Button>
           <Button size="sm" color="danger" variant="flat" onPress={() => void window.clawcraft.closeWindow()}>
-            关闭
+            ✕
           </Button>
         </div>
       ) : (
@@ -667,15 +682,18 @@ function WorldWorkspace({
   const [save, setSave] = useState(initialSave)
   const [chatInput, setChatInput] = useState('')
   const [sending, setSending] = useState(false)
-  const [renderMode, setRenderMode] = useState<'2d' | '3d'>('2d')
   const [playerTarget, setPlayerTarget] = useState<{ x: number; y: number } | null>(null)
   const [conversationOpen, setConversationOpen] = useState(false)
+  const [activePanel, setActivePanel] = useState<'overview' | 'dialogue' | 'token' | 'assets'>('overview')
   const [assetPrompt, setAssetPrompt] = useState('top-down pixel tiny town storage hut with blue roof')
   const [assetLoading, setAssetLoading] = useState(false)
   const [assetError, setAssetError] = useState('')
   const [assetPreview, setAssetPreview] = useState<string>('')
   const [assetSavedPath, setAssetSavedPath] = useState('')
   const [pixelLabBalance, setPixelLabBalance] = useState<{ credits?: { usd: number }; subscription?: { generations: number; total: number } } | null>(null)
+  const [lastSavedAt, setLastSavedAt] = useState<number>(Date.now())
+  const [autoSaving, setAutoSaving] = useState(false)
+  const latestSaveRef = useRef(initialSave)
 
   useEffect(() => {
     const runtime = new GameRuntime(initialSave)
@@ -687,6 +705,10 @@ function WorldWorkspace({
       runtime.stop()
     }
   }, [initialSave])
+
+  useEffect(() => {
+    latestSaveRef.current = save
+  }, [save])
 
   const admin = save.world.agents.find((agent) => agent.role === 'admin') ?? save.world.agents[0]
   const canTalkToAdmin = tileDistance(save.world.player.position, admin.position) <= 2
@@ -811,10 +833,20 @@ function WorldWorkspace({
   }, [canTalkToAdmin, conversationOpen])
 
   async function persist(nextSave: WorldSave) {
+    setAutoSaving(true)
     setSave(nextSave)
     runtimeRef.current?.replaceSave(nextSave)
     await window.clawcraft.writeSave(nextSave)
+    setLastSavedAt(Date.now())
+    setAutoSaving(false)
   }
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      void persist(structuredClone(latestSaveRef.current))
+    }, 12_000)
+    return () => window.clearInterval(timer)
+  }, [])
 
   async function sendChat() {
     if (!canTalkToAdmin) {
@@ -900,6 +932,11 @@ function WorldWorkspace({
     }
   }
 
+  async function leaveWorld() {
+    await persist(structuredClone(latestSaveRef.current))
+    await onBack()
+  }
+
   if (compactMode) {
     return (
       <div className="flex flex-1 flex-col gap-3 p-3">
@@ -918,7 +955,7 @@ function WorldWorkspace({
           </div>
         </div>
         <div className="panel min-h-0 flex-1 rounded-[1.5rem] p-2">
-          <PixiWorld save={save} compact />
+          <PixiWorld save={save} compact onMovePlayer={movePlayerTo} playerTarget={playerTarget} />
         </div>
       </div>
     )
@@ -927,116 +964,85 @@ function WorldWorkspace({
   return (
     <div className="relative flex-1 overflow-hidden p-4">
       <div className="relative h-full overflow-hidden rounded-[2rem] border border-white/10 bg-slate-950/40">
-        {renderMode === '2d' ? (
-          <PixiWorld save={save} compact={false} onMovePlayer={movePlayerTo} playerTarget={playerTarget} />
-        ) : (
-          <div className="grid h-full place-items-center rounded-[1.2rem] bg-slate-950/50">
-            <div className="max-w-lg text-center">
-              <div className="text-lg font-semibold text-white">3D 世界尚未开放</div>
-              <p className="mt-3 text-sm text-slate-300">
-                当前版本默认以 2D 俯视角保证桌宠观察体验。世界逻辑与渲染已分层，后续可以接入 3D renderer adapter。
-              </p>
-            </div>
-          </div>
-        )}
+        <PixiWorld save={save} compact={false} onMovePlayer={movePlayerTo} playerTarget={playerTarget} />
 
         <div className="pointer-events-none absolute inset-0">
-          <div className="pointer-events-auto absolute left-4 top-4 max-w-[min(36rem,calc(100%-22rem))] panel rounded-3xl px-4 py-3">
+          <div className="pointer-events-auto absolute left-4 top-4 max-w-[min(28rem,calc(100%-21rem))] panel rounded-3xl px-4 py-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <h2 className="text-lg font-semibold text-white">{save.meta.name}</h2>
-                <p className="mt-1 text-[11px] text-slate-300">E 交谈 · 点击/WASD 移动</p>
+              <div className="flex items-center gap-3">
+                <Button isIconOnly size="sm" variant="flat" onPress={() => void leaveWorld()}>
+                  ←
+                </Button>
+                <div>
+                  <h2 className="text-lg font-semibold text-white">{save.meta.name}</h2>
+                  <p className="mt-1 text-[11px] text-slate-300">E 交谈 · 点击/WASD 移动</p>
+                </div>
               </div>
               <div className="flex flex-wrap gap-2">
-                <Button color="primary" variant="flat" onPress={() => void persist(save)}>
-                  保存
-                </Button>
-                <Button color="secondary" variant="flat" onPress={() => void onCompactChange(true)}>
-                  桌宠模式
-                </Button>
-                <Button color="warning" variant="flat" onPress={() => void onBack()}>
-                  退出世界
-                </Button>
+                <Chip color={autoSaving ? 'warning' : 'success'} variant="flat">
+                  {autoSaving ? '自动保存中' : `已保存 ${new Date(lastSavedAt).toLocaleTimeString()}`}
+                </Chip>
               </div>
             </div>
 
             <div className="mt-3 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-              <Button size="sm" color={renderMode === '2d' ? 'primary' : 'default'} variant="flat" onPress={() => setRenderMode('2d')}>
-                2D 俯视角
-              </Button>
-              <Button size="sm" color={renderMode === '3d' ? 'warning' : 'default'} variant="flat" onPress={() => setRenderMode('3d')}>
-                3D（占位）
-              </Button>
-              <Chip color="primary" variant="flat">
-                👤 玩家 {save.world.player.position.x},{save.world.player.position.y}
-              </Chip>
-              <Chip color="success" variant="flat">
-                🎯 {focusLabels[save.world.focus]}
-              </Chip>
               <Chip color="warning" variant="flat">
                 🌲 {save.world.stockpile.wood} / 🪨 {save.world.stockpile.stone}
-              </Chip>
-              <Chip color="secondary" variant="flat">
-                ⌨️ WASD / 点击地图
               </Chip>
               <Chip color="default" variant="flat">
                 🏠 建筑 {save.world.buildings.length} / 🤖 Agent {save.world.agents.length}
               </Chip>
-              <Chip color="danger" variant="flat">
-                ⚒ {admin.currentTask}
+              <Chip color="secondary" variant="flat">
+                ⌨️ WASD / 点击
+              </Chip>
+              <Chip color="primary" variant="flat">
+                ⏱ {save.world.time}
               </Chip>
             </div>
           </div>
 
-          <div className="pointer-events-auto absolute right-4 top-4 bottom-4 w-[320px]">
+          <div className="pointer-events-auto absolute right-4 top-4 bottom-4 w-[300px]">
             <Card className="panel h-full rounded-[2rem]">
               <CardBody className="h-full overflow-hidden">
-                <Tabs aria-label="World panels" className="h-full min-h-0">
-                  <Tab key="overview" title="📋 概览">
-                    <div className="h-full overflow-y-auto pr-1">
-                      <OverviewPanel save={save} />
+                <div className="mb-3 grid grid-cols-4 gap-2">
+                  <HeroTabButton label="概览" icon="📋" active={activePanel === 'overview'} onPress={() => setActivePanel('overview')} />
+                  <HeroTabButton label="对话" icon="💬" active={activePanel === 'dialogue'} onPress={() => setActivePanel('dialogue')} />
+                  <HeroTabButton label="Token" icon="📊" active={activePanel === 'token'} onPress={() => setActivePanel('token')} />
+                  <HeroTabButton label="工坊" icon="🎨" active={activePanel === 'assets'} onPress={() => setActivePanel('assets')} />
+                </div>
+                <div className="h-full overflow-y-auto pr-1">
+                  {activePanel === 'overview' ? <OverviewPanel save={save} /> : null}
+                  {activePanel === 'dialogue' ? (
+                    <div className="space-y-3 rounded-2xl border border-white/10 bg-slate-950/30 p-3">
+                      {save.world.chatLog.slice(-16).map((message) => (
+                        <div key={message.id} className="rounded-2xl border border-white/8 bg-white/5 p-3 text-sm">
+                          <div className="mb-1 text-xs uppercase tracking-[0.2em] text-slate-400">{message.role}</div>
+                          <div className="whitespace-pre-wrap text-slate-200">{message.content}</div>
+                        </div>
+                      ))}
                     </div>
-                  </Tab>
-                  <Tab key="dialogue-log" title="💬 对话">
-                    <div className="h-full max-h-[520px] overflow-auto rounded-2xl border border-white/10 bg-slate-950/30 p-3">
-                      <div className="space-y-3">
-                        {save.world.chatLog.slice(-16).map((message) => (
-                          <div key={message.id} className="rounded-2xl border border-white/8 bg-white/5 p-3 text-sm">
-                            <div className="mb-1 text-xs uppercase tracking-[0.2em] text-slate-400">{message.role}</div>
-                            <div className="whitespace-pre-wrap text-slate-200">{message.content}</div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </Tab>
-                  <Tab key="token" title="📊 Token">
-                    <div className="h-full overflow-y-auto pr-1">
-                      <TokenDashboard save={save} />
-                    </div>
-                  </Tab>
-                  <Tab key="asset-lab" title="🎨 工坊">
-                    <div className="h-full overflow-y-auto pr-1">
-                      <AssetLabPanel
-                        prompt={assetPrompt}
-                        onPromptChange={setAssetPrompt}
-                        onGenerate={() => void generatePixelAsset()}
-                        onRefreshBalance={() => void refreshPixelLabBalance()}
-                        loading={assetLoading}
-                        error={assetError}
-                        preview={assetPreview}
-                        savedPath={assetSavedPath}
-                        balance={pixelLabBalance}
-                      />
-                    </div>
-                  </Tab>
-                </Tabs>
+                  ) : null}
+                  {activePanel === 'token' ? <TokenDashboard save={save} /> : null}
+                  {activePanel === 'assets' ? (
+                    <AssetLabPanel
+                      prompt={assetPrompt}
+                      onPromptChange={setAssetPrompt}
+                      onGenerate={() => void generatePixelAsset()}
+                      onRefreshBalance={() => void refreshPixelLabBalance()}
+                      loading={assetLoading}
+                      error={assetError}
+                      preview={assetPreview}
+                      savedPath={assetSavedPath}
+                      balance={pixelLabBalance}
+                    />
+                  ) : null}
+                </div>
               </CardBody>
             </Card>
           </div>
 
-          <div className="pointer-events-none absolute bottom-4 left-4 right-[340px] flex justify-start">
-            {renderMode === '2d' ? (
-              conversationOpen && canTalkToAdmin ? (
+          <div className="pointer-events-none absolute bottom-4 left-4 right-[320px] flex justify-start">
+            {conversationOpen && canTalkToAdmin ? (
                 <div className="pointer-events-auto panel w-full max-w-sm rounded-3xl p-4">
                   <div className="mb-2 text-sm font-semibold text-white">与 Admin 交谈</div>
                   <div className="mb-3 text-xs text-slate-300">按 E 收起 · 站得够近时才会出现</div>
@@ -1055,10 +1061,10 @@ function WorldWorkspace({
                 </div>
               ) : (
                 <div className="pointer-events-auto rounded-2xl border border-white/10 bg-slate-950/65 px-4 py-3 text-sm text-slate-200">
-                  {canTalkToAdmin ? '按 E 与 Admin Agent 交谈' : `靠近 Admin Agent 后才能对话，当前距离：${tileDistance(save.world.player.position, admin.position)} 格`}
+                  {canTalkToAdmin ? '按 E 与 Admin Agent 交谈' : '靠近 Admin Agent 后才能交谈'}
                 </div>
               )
-            ) : null}
+            }
           </div>
         </div>
       </div>
@@ -1155,60 +1161,19 @@ function AssetLabPanel({
 function OverviewPanel({ save }: { save: WorldSave }) {
   const admin = save.world.agents.find((agent) => agent.role === 'admin') ?? save.world.agents[0]
   const npcCount = save.world.agents.filter((agent) => agent.role === 'npc').length
-  const authority = getAuthoritySnapshot(save)
-  const adminScript = save.world.scriptProfiles.find((profile) => profile.id === admin.scriptId)
   return (
     <div className="grid gap-4">
       <div className="grid gap-3 md:grid-cols-2">
-        <Metric label="Admin 角色" value={`${speciesLabels[admin.species]} / ${admin.currentTask}`} />
-        <Metric label="城镇发展" value={`建筑 ${save.world.buildings.length}，NPC ${npcCount}`} />
-        <Metric label="Authority 上限" value={`Agent ${save.world.authority.maxAgents} / 建筑 ${save.world.authority.maxBuildings}`} />
-        <Metric label="记忆压缩" value={`${admin.memorySummary.length} 条摘要，${admin.memories.length} 条活动记忆`} />
+        <Metric label="管理员" value={speciesLabels[admin.species]} />
+        <Metric label="城镇居民" value={`Admin 1 / NPC ${npcCount}`} />
+        <Metric label="建筑数量" value={`${save.world.buildings.length}`} />
+        <Metric label="仓库库存" value={`木 ${save.world.stockpile.wood} / 石 ${save.world.stockpile.stone}`} />
       </div>
 
       <Divider className="bg-white/10" />
 
       <div className="grid gap-3">
-        <h3 className="text-base font-semibold text-white">世界负载</h3>
-        <AuthorityBar
-          label={`Agent 占用 ${save.world.agents.length}/${save.world.authority.maxAgents}`}
-          value={authority.agentLoad}
-          tone="linear-gradient(90deg, #06b6d4, #60a5fa)"
-        />
-        <AuthorityBar
-          label={`建筑占用 ${save.world.buildings.length}/${save.world.authority.maxBuildings}`}
-          value={authority.buildingLoad}
-          tone="linear-gradient(90deg, #d946ef, #8b5cf6)"
-        />
-        <AuthorityBar
-          label={`记忆容量 ${authority.memoryUsage}/${authority.memoryCapacity}`}
-          value={authority.memoryLoad}
-          tone="linear-gradient(90deg, #f59e0b, #fb923c)"
-        />
-      </div>
-
-      <Divider className="bg-white/10" />
-
-      <div className="grid gap-3">
-        <h3 className="text-base font-semibold text-white">AI 行为设置</h3>
-        <div className="grid gap-3 md:grid-cols-2">
-          <Metric label="行为脚本" value={`${adminScript?.name ?? '未加载'} · v${adminScript?.version ?? 0}`} />
-          <Metric label="资源偏好" value={adminScript ? `木 ${adminScript.params.woodBias} / 石 ${adminScript.params.stoneBias}` : '无'} />
-        </div>
-        <div className="space-y-2">
-          {save.world.scriptEvents.slice(-3).reverse().map((event) => (
-            <div key={event.id} className="rounded-2xl border border-emerald-400/15 bg-emerald-400/5 p-3 text-sm text-slate-200">
-              {event.summary}
-            </div>
-          ))}
-          {save.world.scriptEvents.length === 0 ? <div className="text-sm text-slate-400">还没有脚本变更事件。</div> : null}
-        </div>
-      </div>
-
-      <Divider className="bg-white/10" />
-
-      <div className="grid gap-3">
-        <h3 className="text-base font-semibold text-white">Admin Agent 记忆摘要</h3>
+        <h3 className="text-base font-semibold text-white">最近动态</h3>
         <div className="space-y-2 text-sm text-slate-300">
           {admin.memorySummary.length === 0 ? <div>当前还没有历史摘要，世界还很年轻。</div> : null}
           {admin.memorySummary.slice(-4).map((entry, index) => (
@@ -1331,34 +1296,30 @@ function TokenSection({
   )
 }
 
+function HeroTabButton({
+  label,
+  icon,
+  active,
+  onPress
+}: {
+  label: string
+  icon: string
+  active: boolean
+  onPress: () => void
+}) {
+  return (
+    <Button size="sm" variant={active ? 'solid' : 'flat'} color={active ? 'primary' : 'default'} onPress={onPress}>
+      <span className="mr-1">{icon}</span>
+      {label}
+    </Button>
+  )
+}
+
 function Metric({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
       <div className="text-xs uppercase tracking-[0.2em] text-slate-400">{label}</div>
       <div className="mt-2 text-sm font-medium text-white">{value}</div>
-    </div>
-  )
-}
-
-function AuthorityBar({
-  label,
-  value,
-  tone
-}: {
-  label: string
-  value: number
-  tone: string
-}) {
-  const percent = Math.max(0, Math.min(100, Math.round(value * 100)))
-  return (
-    <div className="rounded-2xl border border-white/10 bg-slate-950/30 p-3">
-      <div className="flex items-center justify-between gap-3 text-sm">
-        <span className="text-slate-200">{label}</span>
-        <span className="text-slate-300">{percent}%</span>
-      </div>
-      <div className="token-bar mt-2">
-        <span style={{ width: `${percent}%`, background: tone }} />
-      </div>
     </div>
   )
 }
