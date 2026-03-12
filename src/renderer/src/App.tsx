@@ -137,7 +137,7 @@ function WindowTitleBar({
   const isMac = typeof navigator !== 'undefined' && /Mac/i.test(navigator.platform || navigator.userAgent)
   return (
     <div className="drag-region flex h-12 items-center justify-between border-b border-white/10 px-4 text-sm text-slate-200">
-      <div className={`flex items-center gap-3 ${isMac ? 'pl-2' : ''}`}>
+      <div className={`flex items-center gap-3 ${isMac ? 'pl-8' : ''}`}>
         {isMac ? (
           <div className="no-drag flex items-center gap-2">
             <button type="button" className="window-dot bg-rose-500" onClick={() => void window.clawcraft.closeWindow()} aria-label="关闭窗口" />
@@ -1042,7 +1042,8 @@ function WorldWorkspace({
           </div>
 
           <div className="pointer-events-none absolute bottom-4 left-4 right-[320px] flex justify-start">
-            {conversationOpen && canTalkToAdmin ? (
+            {canTalkToAdmin ? (
+              conversationOpen ? (
                 <div className="pointer-events-auto panel w-full max-w-sm rounded-3xl p-4">
                   <div className="mb-2 text-sm font-semibold text-white">与 Admin 交谈</div>
                   <div className="mb-3 text-xs text-slate-300">按 E 收起 · 站得够近时才会出现</div>
@@ -1061,10 +1062,10 @@ function WorldWorkspace({
                 </div>
               ) : (
                 <div className="pointer-events-auto rounded-2xl border border-white/10 bg-slate-950/65 px-4 py-3 text-sm text-slate-200">
-                  {canTalkToAdmin ? '按 E 与 Admin Agent 交谈' : '靠近 Admin Agent 后才能交谈'}
+                  按 E 与 Admin Agent 交谈
                 </div>
               )
-            }
+            ) : null}
           </div>
         </div>
       </div>

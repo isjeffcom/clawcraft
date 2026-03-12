@@ -283,8 +283,8 @@ export const defaultAuthorityLimits: AuthorityLimits = {
   maxBuildings: 30,
   maxMemoriesPerAgent: 24,
   maxQueuedTasks: 16,
-  mapWidth: 64,
-  mapHeight: 64
+  mapWidth: 96,
+  mapHeight: 96
 }
 
 export const defaultAppSettings: AppSettings = {

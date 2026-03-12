@@ -22,6 +22,8 @@ import {
 
 const WORLD_VERSION = 1 as const
 const CARRY_CAPACITY = 4
+const HARVEST_TICKS_REQUIRED = 12
+const BUILD_TICKS_REQUIRED = 14
 
 function createId(prefix: string): string {
   return `${prefix}_${Math.random().toString(36).slice(2, 10)}`
@@ -307,7 +309,7 @@ function maybeHarvest(world: WorldSave['world'], agent: AgentState, resource: Re
   if (currentCarry >= CARRY_CAPACITY) return false
 
   agent.actionTicks += 1
-  if (agent.actionTicks < 5) {
+  if (agent.actionTicks < HARVEST_TICKS_REQUIRED) {
     return false
   }
   agent.actionTicks = 0
@@ -352,14 +354,14 @@ function advanceAgent(save: WorldSave, agent: AgentState, index: number): void {
     if (nextBuilding && world.buildings.length < world.authority.maxBuildings) {
       const enough = world.stockpile.wood >= nextBuilding.wood && world.stockpile.stone >= nextBuilding.stone
       if (enough) {
-        agent.currentTask = `前往工地建设 ${nextBuilding.kind}`
+        agent.currentTask = '建造'
         agent.position = moveStepDiagonal(agent.position, nextBuilding.position, world.width, world.height)
         if (samePoint(agent.position, nextBuilding.position)) {
           agent.actionTicks += 1
         } else {
           agent.actionTicks = 0
         }
-        if (agent.actionTicks >= 6 && spendStockpile(world, nextBuilding.wood, nextBuilding.stone)) {
+        if (agent.actionTicks >= BUILD_TICKS_REQUIRED && spendStockpile(world, nextBuilding.wood, nextBuilding.stone)) {
           agent.actionTicks = 0
           completeBuilding(world, nextBuilding.kind, nextBuilding.position)
           addMemory(agent, world.authority, 'action', `我完成了 ${nextBuilding.kind} 的建设。`)

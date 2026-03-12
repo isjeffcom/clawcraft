@@ -537,43 +537,25 @@ export function PixiWorld({ save, compact, onMovePlayer, playerTarget }: Props) 
       )
     }
 
-    const info = new Text({
-      text: compact
-        ? `Admin：${admin.currentTask}`
-        : `👤 ${save.world.player.position.x},${save.world.player.position.y}  🌲 ${save.world.stockpile.wood}  🪨 ${save.world.stockpile.stone}  🏠 ${save.world.buildings.length}  🤖 ${save.world.agents.length}`,
-      style: {
-        fill: '#e2e8f0',
-        fontSize: compact ? 12 : 14,
-        fontWeight: '600'
-      }
-    })
-    info.x = 12
-    info.y = 10
-    info.eventMode = 'none'
-    hud.addChild(info)
-
-    if (!compact) {
-      const tip = new Text({
-        text: `渲染模式：2D 俯视角｜视口 ${visibleCols}x${visibleRows}`,
+    if (compact) {
+      const info = new Text({
+        text: `Admin：${admin.currentTask}`,
         style: {
-          fill: '#7dd3fc',
+          fill: '#e2e8f0',
           fontSize: 12,
-          fontWeight: '500'
+          fontWeight: '600'
         }
       })
-      tip.x = 12
-      tip.y = 30
-      tip.eventMode = 'none'
-      hud.addChild(tip)
+      info.x = 12
+      info.y = 10
+      info.eventMode = 'none'
+      hud.addChild(info)
     }
   }
 
   if (rendererMode === 'fallback') {
     return (
       <div ref={hostRef} className="relative h-full min-h-[320px] w-full overflow-hidden rounded-2xl">
-        <div className="absolute left-3 top-3 z-30 rounded-full border border-amber-400/30 bg-amber-400/10 px-3 py-1 text-xs font-medium text-amber-200">
-          Tiny Town 精灵渲染
-        </div>
         <DomWorldFallback save={save} compact={compact} onMovePlayer={onMovePlayer} {...fallbackView} />
       </div>
     )
@@ -583,13 +565,9 @@ export function PixiWorld({ save, compact, onMovePlayer, playerTarget }: Props) 
     <div ref={hostRef} className="relative h-full min-h-[320px] w-full overflow-hidden rounded-2xl" onClick={(event) => handleMoveFromPointer(event.clientX, event.clientY)}>
       {rendererMode === 'loading' ? (
         <div className="absolute left-3 top-3 z-30 rounded-full border border-sky-400/30 bg-sky-400/10 px-3 py-1 text-xs font-medium text-sky-200">
-          Pixi 资源加载中
+          加载世界...
         </div>
-      ) : (
-        <div className="absolute left-3 top-3 z-30 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-xs font-medium text-emerald-200">
-          Pixi / Tiny Town 精灵渲染
-        </div>
-      )}
+      ) : null}
       <div className="h-full min-h-[320px] w-full overflow-hidden rounded-2xl" />
     </div>
   )
@@ -635,22 +613,19 @@ function getTownDecorationPlacements(save: WorldSave, startX: number, startY: nu
 
 function DomWorldFallback({
   save,
-  compact,
   onMovePlayer,
   playerTarget,
   tileSize,
   visibleCols,
   visibleRows,
   startX,
-  startY,
-  admin
+  startY
 }: Props & {
   tileSize: number
   visibleCols: number
   visibleRows: number
   startX: number
   startY: number
-  admin: WorldSave['world']['agents'][number]
 }) {
   const renderedBuildings = save.world.buildings.flatMap((building) => {
     if (
@@ -891,12 +866,6 @@ function DomWorldFallback({
           }}
         />
       ) : null}
-
-      <div className="pointer-events-none absolute left-3 right-3 top-10 z-20 rounded-2xl bg-slate-950/55 px-3 py-2 text-xs text-slate-100">
-        {compact
-          ? `Admin：${admin.currentTask}`
-          : `👤 ${save.world.player.position.x},${save.world.player.position.y}  🌲 ${save.world.stockpile.wood}  🪨 ${save.world.stockpile.stone}  🏠 ${save.world.buildings.length}  🤖 ${save.world.agents.length}`}
-      </div>
     </div>
   )
 }
