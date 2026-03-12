@@ -2,7 +2,7 @@
 
 ## 1. 项目目标
 
-Clawcraft 的目标是做一个本地运行的 **Electron 桌面 2D 俯视角自治世界游戏**：
+Clawcraft 的目标是做一个本地运行的 **Electron 桌面 2D/3D 可切换自治世界游戏**：
 
 - 玩家是这个世界的 **God**
 - 世界里只有一个可直接对话的 **Admin Agent**
@@ -34,7 +34,8 @@ Clawcraft 的目标是做一个本地运行的 **Electron 桌面 2D 俯视角自
 
 ### 世界与运行时
 
-- 2D 俯视角世界
+- 2D/3D 渲染可切换（世界创建时选择，默认优先 3D）
+- 世界创建强制选择行为决策引擎（`MiniMax LLM` / `通用 LLM`）与渲染模式（`2D` / `3D`）
 - 多存档 JSON
 - 世界自动 tick
 - Admin Agent 会自动：
@@ -48,6 +49,11 @@ Clawcraft 的目标是做一个本地运行的 **Electron 桌面 2D 俯视角自
   - 建筑数
   - 记忆容量
   - 危险请求
+- 已落地生命周期系统：
+  - 年龄增长
+  - 心理状态波动（可能进入 emo）
+  - 记忆达到上限触发死亡
+  - Admin 死亡后 Authority 自动任命继任 Admin
 
 ### 玩家交互
 
@@ -55,19 +61,22 @@ Clawcraft 的目标是做一个本地运行的 **Electron 桌面 2D 俯视角自
 - 当前支持：
   - WASD / 方向键移动
   - 点击地图设置目标点并逐步移动
+- 新增“控制角色 / 观察模式”切换
+- 桌宠模式自动进入观察模式
 - 玩家靠近 Admin Agent（<= 2 格）后，地图浮层会出现对话框
 - 右侧提供对话记录、Token Dashboard、素材工坊等面板
 
 ### 视觉与素材
 
-- 已接入 **Kenney Tiny Town** 全量 tile 运行时资源
+- 已接入 **Kenney Tiny Town** 运行时资源 + 3D 体素拼装渲染路径
 - 已接入 **Kenney Roguelike Characters** 角色资源的一部分
 - 当前世界支持：
   - 草地 / 土地 / 石地 / 水
   - 道路
   - 树木 / 围栏 / 标牌 / 箱子 / 井等装饰
   - 房屋拼装（hut / storage / workshop 等）
-  - 玩家 / NPC sprite
+  - 玩家 / NPC 动画（基础 bob 动效）
+  - 3D 体素地形、资源、建筑和角色
 
 ### PixelLab 集成
 
@@ -98,8 +107,10 @@ Clawcraft 的目标是做一个本地运行的 **Electron 桌面 2D 俯视角自
 │   │   └── src
 │   │       ├── App.tsx           # 主 UI / 世界 HUD / Onboarding
 │   │       ├── game
-│   │       │   ├── PixiWorld.tsx # 世界渲染与 fallback
-│   │       │   └── runtime.ts    # 世界 tick runtime
+│   │       │   ├── WorldRenderer.tsx # 2D/3D 渲染分发
+│   │       │   ├── ThreeWorld.tsx    # 3D 体素世界
+│   │       │   ├── PixiWorld.tsx     # 2D 世界渲染
+│   │       │   └── runtime.ts        # 世界 tick runtime
 │   │       ├── state
 │   │       └── styles.css
 │   └── shared
@@ -134,23 +145,25 @@ Clawcraft 的目标是做一个本地运行的 **Electron 桌面 2D 俯视角自
 - 存档迁移
 - Token 统计
 
-渲染层放在 `PixiWorld.tsx`：
+渲染层放在 `WorldRenderer.tsx` + `ThreeWorld.tsx` + `PixiWorld.tsx`：
 
-- 标准渲染路径：Pixi / 纹理 / sprite
-- 兜底路径：DOM sprite fallback
+- 主路径：Three.js 3D 体素渲染
+- 兼容路径：Pixi 2D 渲染
+- 兜底路径：Pixi 内部 fallback
 
-这样后续要替换 3D renderer，不需要重写世界逻辑。
+当前 2D 与 3D 共用同一套世界逻辑，渲染层可独立迭代而不重写规则系统。
 
-### 4.2 Admin Agent + 确定性系统
+### 4.2 Admin Agent + MiniMax LLM + Authority
 
 当前不是每帧调用 LLM，而是：
 
-- 低层行为由确定性系统推进
+- 低层行为由规则系统推进
   - 移动
   - 采集
   - 交付
   - 建造
-- 高层目标 / 玩家对话由 LLM 或 fallback 逻辑处理
+- 高层行为决策由 MiniMax LLM 进行动作规划（OpenAI 兼容调用）
+- 玩家与 Admin 的神谕对话由 Authority 模型处理（OpenRouter 固定 `openai/gpt-5.4`）
 
 这样可以避免：
 
@@ -168,15 +181,14 @@ Clawcraft 的目标是做一个本地运行的 **Electron 桌面 2D 俯视角自
 
 这比“面板里直接发命令”更接近游戏体验。
 
-### 4.4 受限脚本演化
+### 4.4 生命周期与继任
 
-当前并没有允许 Agent 任意热改源码，而是：
+当前已经加入基础“生老病死”与治理链路：
 
-- Agent / Building / Resource 都挂 `scriptId`
-- `scriptProfiles` + `scriptEvents` 记录脚本状态
-- Admin Agent 可以在 Authority 审核后调优受限参数
-
-这是为了实现“可自进化”但不把程序直接玩炸。
+- Agent 会随 tick 增龄并发生心理状态变化
+- 心理健康下降可能进入 emo
+- 死亡触发条件含记忆容量上限
+- Admin 死亡后，Authority 从现有 Agent 中选继任者并授予与 God 对话权限
 
 ---
 
@@ -194,8 +206,9 @@ Clawcraft 的目标是做一个本地运行的 **Electron 桌面 2D 俯视角自
 ### 渲染 / 游戏
 
 - PixiJS
+- Three.js
 - 自定义 runtime tick
-- DOM fallback sprite renderer
+- 2D/3D renderer 分层
 
 ### 数据 / 校验
 
@@ -204,8 +217,8 @@ Clawcraft 的目标是做一个本地运行的 **Electron 桌面 2D 俯视角自
 
 ### AI / Provider
 
-- OpenAI SDK
-- MiniMax OpenAI-compatible 接入
+- OpenRouter（Authority 固定模型 `openai/gpt-5.4`）
+- MiniMax LLM（行为决策引擎）
 - PixelLab API
 
 ### 测试 / 工程化
@@ -223,14 +236,14 @@ Clawcraft 的目标是做一个本地运行的 **Electron 桌面 2D 俯视角自
 
 ### 视觉层
 
-- 标准 Pixi 精灵渲染链路虽然在推进，但 **仍未完全稳定接管所有运行环境**
-- 目前很多时候主要依赖 **DOM sprite fallback**
-- 画面虽然比最早的蓝绿方块强很多，但离真正的 Tiny Town 完整场景仍有差距
+- 3D 体素世界已可运行，但场景“美术 authored 感”仍不足
+- 建筑与道具仍偏程序化拼装，距离参考图精细度有差距
+- 灯光、阴影层次和材质表现仍可继续打磨
 
 ### 角色层
 
-- 玩家/NPC 目前只有非常轻量的 bob 动效
-- 还没有真正的 walk 帧动画 / 朝向动画
+- 玩家/NPC 目前是基础 bob 动效与简化体素角色
+- 还没有完整 walk 帧、状态机和更细粒度朝向表现
 - 点击移动目前是逐 tile 前进，不是真正寻路
 
 ### UI / HUD 层
@@ -249,20 +262,21 @@ Clawcraft 的目标是做一个本地运行的 **Electron 桌面 2D 俯视角自
 
 如果继续做，我建议按这个顺序：
 
-1. **彻底稳定 Pixi 正式渲染链路**
-   - 不再依赖 fallback 作为主要路径
+1. **把 3D 视觉从“可运行”推进到“可观赏”**
+   - 建筑模板、美术比例、场景分区进一步打磨
 
-2. **把 Tiny Town 初始小镇做成更完整的 authored scene**
-   - 更像你给的参考图
-
-3. **角色动画系统**
+2. **角色动画系统升级**
    - walk 帧
    - 朝向
    - 动作状态切换
 
-4. **玩家点击寻路**
+3. **玩家点击寻路**
    - 不只是简单逐格
    - 要能绕路、避障
+
+4. **生命周期系统再深化**
+   - emo 成因与恢复机制
+   - 继任策略与治理行为差异
 
 5. **HUD 继续游戏化**
    - 更少面板味
@@ -318,8 +332,13 @@ xvfb-run -a npm run test:e2e
 - 桌面端运行
 - 多存档
 - Admin 自治世界循环
+- MiniMax LLM 行为决策
+- OpenRouter Authority（固定 `openai/gpt-5.4`）
 - 玩家进入世界移动观察
+- 控制/观察模式切换（桌宠自动观察）
 - 靠近对话
+- 生老病死与 Admin 继任基础机制
+- 2D/3D 可切换渲染
 - Kenney + PixelLab 资产管线
 - 打包与测试体系
 

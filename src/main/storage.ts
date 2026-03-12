@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, readdirSync, unlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { app, safeStorage } from 'electron'
 import {
@@ -20,6 +20,14 @@ import { createNewWorldSave, deriveSaveMeta, migrateWorldSave } from '../shared/
 type PersistedState = {
   settings: AppSettings
 }
+
+type LegacyPersistedSettings = Partial<
+  AppSettings & {
+    provider?: 'openai' | 'minimax' | 'openrouter'
+    groupId?: string
+    offlineMode?: boolean
+  }
+>
 
 function encodeSecret(value: string): string {
   if (!value) return ''
@@ -83,18 +91,18 @@ function writePersistedState(state: PersistedState): void {
 }
 
 export function getSettings(): AppSettings {
-  const raw = readPersistedState().settings ?? defaultAppSettings
-  const provider = raw.provider ?? defaultAppSettings.provider
+  const raw = (readPersistedState().settings ?? defaultAppSettings) as LegacyPersistedSettings
   const parsed = appSettingsSchema.parse({
     ...defaultAppSettings,
     ...raw,
-    apiKey: decodeSecret(raw.apiKey),
-    pixelLabApiKey: decodeSecret(raw.pixelLabApiKey),
-    baseUrl: raw.baseUrl || createDefaultBaseUrl(provider),
-    model:
-      raw.model && !(provider === 'minimax' && raw.model.startsWith('gpt-'))
-        ? raw.model
-        : createDefaultModel(provider)
+    provider: 'openrouter',
+    apiKey: decodeSecret(raw.apiKey ?? ''),
+    minimaxApiKey: decodeSecret(raw.minimaxApiKey ?? ''),
+    pixelLabApiKey: decodeSecret(raw.pixelLabApiKey ?? ''),
+    baseUrl: createDefaultBaseUrl('openrouter'),
+    model: createDefaultModel('openrouter'),
+    minimaxModel: raw.minimaxModel || defaultAppSettings.minimaxModel,
+    minimaxBaseUrl: raw.minimaxBaseUrl || defaultAppSettings.minimaxBaseUrl
   })
   return parsed
 }
@@ -102,13 +110,15 @@ export function getSettings(): AppSettings {
 export function saveSettings(input: AppSettings): AppSettings {
   const parsed = appSettingsSchema.parse({
     ...input,
-    baseUrl: input.baseUrl || createDefaultBaseUrl(input.provider),
-    model: input.model || createDefaultModel(input.provider)
+    provider: 'openrouter',
+    baseUrl: createDefaultBaseUrl('openrouter'),
+    model: createDefaultModel('openrouter')
   })
   writePersistedState({
     settings: {
       ...parsed,
       apiKey: encodeSecret(parsed.apiKey),
+      minimaxApiKey: encodeSecret(parsed.minimaxApiKey),
       pixelLabApiKey: encodeSecret(parsed.pixelLabApiKey)
     }
   })
@@ -155,6 +165,13 @@ export function createSave(draft: SaveDraft): WorldSave {
   const save = createNewWorldSave(parsedDraft)
   writeSave(save)
   return save
+}
+
+export function deleteSave(id: string): boolean {
+  const path = getSavePath(id)
+  if (!existsSync(path)) return false
+  unlinkSync(path)
+  return true
 }
 
 export function getBootstrapState(): BootstrapState {

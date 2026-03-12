@@ -27,7 +27,7 @@ export const useAppStore = create<AppState>((set) => ({
       bootstrap,
       saves: bootstrap.saves,
       compactMode: bootstrap.windowMode === 'compact',
-      phase: bootstrap.settings.apiKey || bootstrap.settings.offlineMode ? 'saves' : 'onboarding'
+      phase: bootstrap.settings.apiKey && bootstrap.settings.minimaxApiKey ? 'saves' : 'onboarding'
     }),
   setPhase: (phase) => set({ phase }),
   setSaves: (saves) => set({ saves }),

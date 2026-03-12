@@ -4,12 +4,15 @@ export const IPC_CHANNELS = {
   LIST_SAVES: 'saves:list',
   CREATE_SAVE: 'saves:create',
   LOAD_SAVE: 'saves:load',
+  DELETE_SAVE: 'saves:delete',
   SAVE_WORLD: 'saves:write',
   TOGGLE_WINDOW_MODE: 'window:toggle-mode',
   WINDOW_MINIMIZE: 'window:minimize',
   WINDOW_TOGGLE_MAXIMIZE: 'window:toggle-maximize',
   WINDOW_CLOSE: 'window:close',
   CHAT_ADMIN: 'agent:chat-admin',
+  PLAN_BEHAVIOR: 'agent:plan-behavior',
+  NAME_AGENT: 'agent:name',
   PIXELLAB_BALANCE: 'pixellab:balance',
   PIXELLAB_GENERATE: 'pixellab:generate'
 } as const

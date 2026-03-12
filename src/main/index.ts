@@ -1,9 +1,9 @@
 import { app, ipcMain } from 'electron'
-import { chatRequestSchema, windowModeSchema, worldSaveSchema, type AppSettings } from '../shared/contracts'
+import { agentIdentityRequestSchema, behaviorPlanRequestSchema, chatRequestSchema, windowModeSchema, worldSaveSchema, type AppSettings } from '../shared/contracts'
 import { IPC_CHANNELS } from '../shared/ipc'
-import { chatWithAdmin } from './llm'
+import { chatWithAdmin, generateAgentIdentity, planAgentBehavior } from './llm'
 import { generatePixelLabImage, getPixelLabBalance } from './pixellab'
-import { createSave, getBootstrapState, getSettings, listSaves, loadSave, saveSettings, writeSave } from './storage'
+import { createSave, deleteSave, getBootstrapState, getSettings, listSaves, loadSave, saveSettings, writeSave } from './storage'
 import { createMainWindow, getMainWindow, toggleWindowMaximize, toggleWindowMode } from './windowManager'
 
 function registerIpcHandlers(): void {
@@ -11,9 +11,12 @@ function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.LIST_SAVES, () => listSaves())
   ipcMain.handle(IPC_CHANNELS.CREATE_SAVE, (_event, draft) => createSave(draft))
   ipcMain.handle(IPC_CHANNELS.LOAD_SAVE, (_event, id: string) => loadSave(id))
+  ipcMain.handle(IPC_CHANNELS.DELETE_SAVE, (_event, id: string) => deleteSave(id))
   ipcMain.handle(IPC_CHANNELS.SAVE_WORLD, (_event, save) => writeSave(worldSaveSchema.parse(save)))
   ipcMain.handle(IPC_CHANNELS.SAVE_SETTINGS, (_event, settings: AppSettings) => saveSettings(settings))
   ipcMain.handle(IPC_CHANNELS.CHAT_ADMIN, (_event, request) => chatWithAdmin(chatRequestSchema.parse(request)))
+  ipcMain.handle(IPC_CHANNELS.PLAN_BEHAVIOR, (_event, request) => planAgentBehavior(behaviorPlanRequestSchema.parse(request)))
+  ipcMain.handle(IPC_CHANNELS.NAME_AGENT, (_event, request) => generateAgentIdentity(agentIdentityRequestSchema.parse(request)))
   ipcMain.handle(IPC_CHANNELS.PIXELLAB_BALANCE, () => getPixelLabBalance())
   ipcMain.handle(IPC_CHANNELS.PIXELLAB_GENERATE, (_event, request) => generatePixelLabImage(request))
   ipcMain.handle(IPC_CHANNELS.TOGGLE_WINDOW_MODE, (_event, nextMode) => {

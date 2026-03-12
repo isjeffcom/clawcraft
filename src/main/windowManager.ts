@@ -18,6 +18,12 @@ function getCompactBounds() {
   }
 }
 
+function setTrafficLights(visible: boolean) {
+  if (process.platform === 'darwin' && mainWindow) {
+    mainWindow.setWindowButtonVisibility(visible)
+  }
+}
+
 export function createMainWindow(initialMode: WindowMode): BrowserWindow {
   currentMode = initialMode
   const compact = initialMode === 'compact'
@@ -30,18 +36,25 @@ export function createMainWindow(initialMode: WindowMode): BrowserWindow {
     minHeight: 260,
     x: compact ? compactBounds.x : undefined,
     y: compact ? compactBounds.y : undefined,
-    frame: false,
+    // 保留原生 frame，让 Mac 三个按钮在正常模式可见
     titleBarStyle: 'hidden',
-    backgroundColor: '#020617',
+    // 透明背景支持桌宠模式
+    transparent: true,
+    backgroundColor: '#00000000',
     autoHideMenuBar: true,
     alwaysOnTop: compact,
-    resizable: true,
+    resizable: !compact,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false
     }
+  })
+
+  // 创建后立刻根据初始模式控制 traffic lights
+  mainWindow.once('ready-to-show', () => {
+    setTrafficLights(!compact)
   })
 
   if (process.env.ELECTRON_RENDERER_URL) {
@@ -64,11 +77,16 @@ export function toggleWindowMode(nextMode: WindowMode): WindowMode {
   if (nextMode === 'compact') {
     const bounds = getCompactBounds()
     mainWindow.setAlwaysOnTop(true, 'screen-saver')
+    mainWindow.setResizable(false)
+    setTrafficLights(false)
     mainWindow.setBounds(bounds, true)
   } else {
     mainWindow.setAlwaysOnTop(false)
-    mainWindow.setSize(1440, 920)
+    mainWindow.setResizable(true)
+    mainWindow.setSize(1440, 920, true)
     mainWindow.center()
+    // center() 是异步的，稍微延迟再显示 traffic lights 避免闪烁
+    setTimeout(() => setTrafficLights(true), 150)
   }
 
   return currentMode

@@ -264,16 +264,15 @@ export function PixiWorld({ save, compact, onMovePlayer, playerTarget }: Props) 
         setRendererMode('loading')
         await Assets.load(PRELOAD_ASSETS)
         const app = new Application()
-        await app.init({
-          width,
-          height,
-          preference: 'webgl',
-          backgroundColor: 0x081225,
-          backgroundAlpha: 1,
-          antialias: false,
-          autoDensity: true,
-          resolution: window.devicePixelRatio || 1
-        })
+          await app.init({
+            width,
+            height,
+            preference: 'webgl',
+            backgroundAlpha: 0,
+            antialias: false,
+            autoDensity: true,
+            resolution: window.devicePixelRatio || 1
+          })
         if (disposed) {
           app.destroy(true)
           return

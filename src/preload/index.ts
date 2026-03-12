@@ -1,5 +1,14 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { AppSettings, ChatRequest, PixelLabGenerateRequest, SaveDraft, WindowMode, WorldSave } from '../shared/contracts'
+import type {
+  AppSettings,
+  AgentIdentityRequest,
+  BehaviorPlanRequest,
+  ChatRequest,
+  PixelLabGenerateRequest,
+  SaveDraft,
+  WindowMode,
+  WorldSave
+} from '../shared/contracts'
 import { IPC_CHANNELS } from '../shared/ipc'
 
 const api = {
@@ -8,8 +17,11 @@ const api = {
   listSaves: () => ipcRenderer.invoke(IPC_CHANNELS.LIST_SAVES),
   createSave: (draft: SaveDraft) => ipcRenderer.invoke(IPC_CHANNELS.CREATE_SAVE, draft),
   loadSave: (id: string) => ipcRenderer.invoke(IPC_CHANNELS.LOAD_SAVE, id),
+  deleteSave: (id: string) => ipcRenderer.invoke(IPC_CHANNELS.DELETE_SAVE, id),
   writeSave: (save: WorldSave) => ipcRenderer.invoke(IPC_CHANNELS.SAVE_WORLD, save),
   chatWithAdmin: (request: ChatRequest) => ipcRenderer.invoke(IPC_CHANNELS.CHAT_ADMIN, request),
+  planAgentBehavior: (request: BehaviorPlanRequest) => ipcRenderer.invoke(IPC_CHANNELS.PLAN_BEHAVIOR, request),
+  nameAgent: (request: AgentIdentityRequest) => ipcRenderer.invoke(IPC_CHANNELS.NAME_AGENT, request),
   getPixelLabBalance: () => ipcRenderer.invoke(IPC_CHANNELS.PIXELLAB_BALANCE),
   generatePixelLabImage: (request: PixelLabGenerateRequest) => ipcRenderer.invoke(IPC_CHANNELS.PIXELLAB_GENERATE, request),
   toggleWindowMode: (mode: WindowMode) => ipcRenderer.invoke(IPC_CHANNELS.TOGGLE_WINDOW_MODE, mode),

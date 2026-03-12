@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-export const providerKindSchema = z.enum(['openai', 'minimax'])
+export const providerKindSchema = z.enum(['openrouter'])
 export type ProviderKind = z.infer<typeof providerKindSchema>
 
 export const windowModeSchema = z.enum(['standard', 'compact'])
@@ -21,6 +21,21 @@ export type BuildingKind = z.infer<typeof buildingKindSchema>
 export const focusGoalSchema = z.enum(['balanced', 'expand', 'wood', 'stone', 'tidy'])
 export type FocusGoal = z.infer<typeof focusGoalSchema>
 
+export const renderModeSchema = z.enum(['2d', '3d'])
+export type RenderMode = z.infer<typeof renderModeSchema>
+
+export const decisionEngineSchema = z.enum(['minimax-llm', 'general-llm'])
+export type DecisionEngine = z.infer<typeof decisionEngineSchema>
+
+export const playerControlModeSchema = z.enum(['control', 'observe'])
+export type PlayerControlMode = z.infer<typeof playerControlModeSchema>
+
+export const facingSchema = z.enum(['north', 'south', 'east', 'west'])
+export type Facing = z.infer<typeof facingSchema>
+
+export const animStateSchema = z.enum(['idle', 'walk'])
+export type AnimState = z.infer<typeof animStateSchema>
+
 export const pointSchema = z.object({
   x: z.number().int(),
   y: z.number().int()
@@ -36,18 +51,21 @@ export type SmoothPosition = z.infer<typeof smoothPositionSchema>
 export const playerStateSchema = z.object({
   name: z.string(),
   position: pointSchema,
-  renderPosition: smoothPositionSchema
+  renderPosition: smoothPositionSchema,
+  facing: facingSchema.default('south'),
+  animState: animStateSchema.default('idle')
 })
 export type PlayerState = z.infer<typeof playerStateSchema>
 
 export const appSettingsSchema = z.object({
-  provider: providerKindSchema.default('openai'),
+  provider: providerKindSchema.default('openrouter'),
   apiKey: z.string().default(''),
-  model: z.string().default('gpt-4.1-mini'),
-  baseUrl: z.string().default('https://api.openai.com/v1'),
-  groupId: z.string().optional().default(''),
+  model: z.string().default('openai/gpt-5.4'),
+  baseUrl: z.string().default('https://openrouter.ai/api/v1'),
+  minimaxApiKey: z.string().default(''),
+  minimaxModel: z.string().default('MiniMax-M2.5'),
+  minimaxBaseUrl: z.string().default('https://api.minimax.io/v1'),
   pixelLabApiKey: z.string().default(''),
-  offlineMode: z.boolean().default(false),
   compactMode: z.boolean().default(false)
 })
 export type AppSettings = z.infer<typeof appSettingsSchema>
@@ -56,6 +74,7 @@ export const saveMetaSchema = z.object({
   id: z.string(),
   name: z.string(),
   species: agentSpeciesSchema,
+  renderMode: renderModeSchema.default('3d'),
   createdAt: z.number(),
   updatedAt: z.number(),
   lastPlayedAt: z.number(),
@@ -102,6 +121,12 @@ export const agentStateSchema = z.object({
   inventory: inventorySchema,
   currentTask: z.string(),
   actionTicks: z.number().int().nonnegative(),
+  ageTicks: z.number().int().nonnegative(),
+  maxAgeTicks: z.number().int().positive(),
+  mental: z.number().min(0).max(100),
+  mood: z.enum(['stable', 'emo']),
+  facing: facingSchema.default('south'),
+  animState: animStateSchema.default('idle'),
   plan: z.string(),
   focus: focusGoalSchema,
   memories: z.array(memoryEntrySchema),
@@ -124,6 +149,7 @@ export const buildingSchema = z.object({
   kind: buildingKindSchema,
   scriptId: z.string(),
   position: pointSchema,
+  rotation: z.number().int().min(0).max(3).default(0),
   progress: z.number().min(0).max(1),
   complete: z.boolean()
 })
@@ -183,6 +209,17 @@ export const tokenUsageRecordSchema = z.object({
 })
 export type TokenUsageRecord = z.infer<typeof tokenUsageRecordSchema>
 
+export const adminActionSchema = z.enum(['gatherWood', 'gatherStone', 'build', 'spawn', 'stabilize'])
+export type AdminAction = z.infer<typeof adminActionSchema>
+
+export const llmPolicySchema = z.object({
+  nextAdminAction: adminActionSchema.default('gatherWood'),
+  rationale: z.string().default(''),
+  source: z.enum(['minimax-llm', 'fallback']).default('fallback'),
+  updatedAt: z.number().default(0)
+})
+export type LlmPolicyState = z.infer<typeof llmPolicySchema>
+
 export const worldStateSchema = z.object({
   width: z.number().int().positive(),
   height: z.number().int().positive(),
@@ -198,6 +235,7 @@ export const worldStateSchema = z.object({
   agents: z.array(agentStateSchema),
   chatLog: z.array(chatMessageSchema),
   tokenLedger: z.array(tokenUsageRecordSchema),
+  llmPolicy: llmPolicySchema,
   scriptProfiles: z.array(scriptProfileSchema),
   scriptEvents: z.array(scriptEventSchema),
   authority: authorityLimitsSchema
@@ -208,7 +246,10 @@ export const worldSaveSchema = z.object({
   version: z.literal(1),
   meta: saveMetaSchema,
   settings: z.object({
-    focus: focusGoalSchema
+    focus: focusGoalSchema,
+    renderMode: renderModeSchema.default('3d'),
+    decisionEngine: decisionEngineSchema.default('minimax-llm'),
+    playerControlMode: playerControlModeSchema.default('control')
   }),
   world: worldStateSchema
 })
@@ -224,9 +265,46 @@ export type BootstrapState = z.infer<typeof bootstrapStateSchema>
 export const saveDraftSchema = z.object({
   name: z.string().min(2).max(32),
   species: agentSpeciesSchema,
+  renderMode: renderModeSchema,
+  decisionEngine: decisionEngineSchema,
   seed: z.number().int().optional()
 })
 export type SaveDraft = z.infer<typeof saveDraftSchema>
+
+export const behaviorPlanRequestSchema = z.object({
+  worldId: z.string(),
+  agentId: z.string(),
+  decisionEngine: decisionEngineSchema,
+  worldSummary: z.string(),
+  currentFocus: focusGoalSchema,
+  adminTask: z.string()
+})
+export type BehaviorPlanRequest = z.infer<typeof behaviorPlanRequestSchema>
+
+export const behaviorPlanResponseSchema = z.object({
+  action: adminActionSchema,
+  focus: focusGoalSchema.optional(),
+  rationale: z.string(),
+  usage: tokenUsageRecordSchema.optional()
+})
+export type BehaviorPlanResponse = z.infer<typeof behaviorPlanResponseSchema>
+
+export const agentIdentityRequestSchema = z.object({
+  worldId: z.string(),
+  agentId: z.string(),
+  worldSummary: z.string(),
+  species: agentSpeciesSchema,
+  role: z.enum(['admin', 'npc']),
+  existingNames: z.array(z.string())
+})
+export type AgentIdentityRequest = z.infer<typeof agentIdentityRequestSchema>
+
+export const agentIdentityResponseSchema = z.object({
+  name: z.string(),
+  story: z.string(),
+  usage: tokenUsageRecordSchema.optional()
+})
+export type AgentIdentityResponse = z.infer<typeof agentIdentityResponseSchema>
 
 export const chatRequestSchema = z.object({
   worldId: z.string(),
@@ -279,7 +357,7 @@ export const pixelLabGenerateResponseSchema = z.object({
 export type PixelLabGenerateResponse = z.infer<typeof pixelLabGenerateResponseSchema>
 
 export const defaultAuthorityLimits: AuthorityLimits = {
-  maxAgents: 8,
+  maxAgents: 64,
   maxBuildings: 30,
   maxMemoriesPerAgent: 24,
   maxQueuedTasks: 16,
@@ -288,13 +366,14 @@ export const defaultAuthorityLimits: AuthorityLimits = {
 }
 
 export const defaultAppSettings: AppSettings = {
-  provider: 'openai',
+  provider: 'openrouter',
   apiKey: '',
-  model: 'gpt-4.1-mini',
-  baseUrl: 'https://api.openai.com/v1',
-  groupId: '',
+  model: 'openai/gpt-5.4',
+  baseUrl: 'https://openrouter.ai/api/v1',
+  minimaxApiKey: '',
+  minimaxModel: 'MiniMax-M2.5',
+  minimaxBaseUrl: 'https://api.minimax.io/v1',
   pixelLabApiKey: '',
-  offlineMode: false,
   compactMode: false
 }
 
@@ -303,15 +382,15 @@ export function estimateTokenCount(text: string): number {
 }
 
 export function createDefaultBaseUrl(provider: ProviderKind): string {
-  return provider === 'minimax' ? 'https://api.minimax.io/v1' : 'https://api.openai.com/v1'
+  return provider === 'openrouter' ? 'https://openrouter.ai/api/v1' : 'https://openrouter.ai/api/v1'
 }
 
 export function createDefaultModel(provider: ProviderKind): string {
-  return provider === 'minimax' ? 'M2-her' : 'gpt-4.1-mini'
+  return provider === 'openrouter' ? 'openai/gpt-5.4' : 'openai/gpt-5.4'
 }
 
 export function getRecommendedModels(provider: ProviderKind): string[] {
-  return provider === 'minimax'
-    ? ['M2-her', 'MiniMax-M2.5', 'MiniMax-M2.5-highspeed', 'MiniMax-M2', 'MiniMax-M2.1']
-    : ['gpt-4.1-mini', 'gpt-4.1', 'gpt-4o-mini']
+  return provider === 'openrouter'
+    ? ['openai/gpt-5.4', 'openai/gpt-5.4-mini', 'openai/gpt-4.1']
+    : ['openai/gpt-5.4']
 }

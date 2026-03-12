@@ -6,6 +6,8 @@ describe('world flow integration', () => {
     const save = createNewWorldSave({
       name: 'Flow World',
       species: 'sheep',
+      renderMode: '3d',
+      decisionEngine: 'minimax-llm',
       seed: 777
     })
 
