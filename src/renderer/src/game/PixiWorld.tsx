@@ -109,6 +109,11 @@ function toScreen(position: { x: number; y: number }, startX: number, startY: nu
   }
 }
 
+function facingFrame(from: { x: number; y: number }, to: { x: number; y: number }) {
+  const dx = to.x - from.x
+  return dx < 0 ? 'left' : dx > 0 ? 'right' : 'front'
+}
+
 function taskBubbleText(agent: WorldSave['world']['agents'][number]) {
   return agent.actionTicks > 0 ? `${agent.currentTask} · ${agent.actionTicks}/5` : agent.currentTask
 }
@@ -430,7 +435,7 @@ export function PixiWorld({ save, compact, onMovePlayer, playerTarget }: Props) 
 
     renderTownDecorations(buildings, save, startX, startY, tileSize)
 
-    save.world.agents.forEach((agent) => {
+    save.world.agents.forEach((agent, index) => {
       if (
         agent.position.x < startX ||
         agent.position.x >= startX + visibleCols ||
@@ -444,7 +449,11 @@ export function PixiWorld({ save, compact, onMovePlayer, playerTarget }: Props) 
       shadow.ellipse(localX + tileSize / 2, localY + tileSize * 0.78, tileSize * 0.22, tileSize * 0.12).fill(0x020617, 0.35)
       agents.addChild(shadow)
       const sprite = addTileSprite(agents, VILLAGER_SPRITE, localX, localY, tileSize)
-      sprite.y = localY - tileSize * 0.12
+      sprite.y = localY - tileSize * 0.12 + Math.sin(save.world.time / 4 + index) * 0.8
+      sprite.scale.x = facingFrame(agent.renderPosition, agent.position) === 'left' ? -1 : 1
+      if (sprite.scale.x < 0) {
+        sprite.x = localX + tileSize
+      }
       if (agent.role === 'admin') {
         const halo = new Graphics()
         halo.circle(localX + tileSize / 2, localY + tileSize / 2, tileSize * 0.32).stroke({ color: 0xf8fafc, width: 2 })
@@ -492,7 +501,11 @@ export function PixiWorld({ save, compact, onMovePlayer, playerTarget }: Props) 
       halo.circle(localX + tileSize / 2, localY + tileSize / 2, tileSize * 0.34).stroke({ color: 0xfacc15, width: 3 })
       agents.addChild(halo)
       const sprite = addTileSprite(agents, PLAYER_SPRITE, localX, localY, tileSize)
-      sprite.y = localY - tileSize * 0.12
+      sprite.y = localY - tileSize * 0.12 + Math.sin(save.world.time / 4) * 0.8
+      sprite.scale.x = facingFrame(save.world.player.renderPosition, save.world.player.position) === 'left' ? -1 : 1
+      if (sprite.scale.x < 0) {
+        sprite.x = localX + tileSize
+      }
       if (!compact) {
         const playerLabel = new Text({
           text: 'P',
@@ -814,7 +827,9 @@ function DomWorldFallback({
                 left: smoothLeft,
                 top: smoothTop - tileSize * 0.12,
                 width: tileSize,
-                height: tileSize
+                height: tileSize,
+                transform: facingFrame(agent.renderPosition, agent.position) === 'left' ? 'scaleX(-1)' : undefined,
+                transformOrigin: 'center'
               }}
             />
           </div>
@@ -848,7 +863,9 @@ function DomWorldFallback({
               left: smoothLeft,
               top: smoothTop - tileSize * 0.12,
               width: tileSize,
-              height: tileSize
+              height: tileSize,
+              transform: facingFrame(save.world.player.renderPosition, save.world.player.position) === 'left' ? 'scaleX(-1)' : undefined,
+              transformOrigin: 'center'
             }}
           />
               </>

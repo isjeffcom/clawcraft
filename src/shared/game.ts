@@ -49,20 +49,13 @@ function samePoint(a: Point, b: Point): boolean {
   return a.x === b.x && a.y === b.y
 }
 
-function moveStep(position: Point, target: Point, width: number, height: number): Point {
+function moveStepDiagonal(position: Point, target: Point, width: number, height: number): Point {
   if (samePoint(position, target)) return position
-
   const dx = target.x - position.x
   const dy = target.y - position.y
-
-  const next =
-    Math.abs(dx) >= Math.abs(dy)
-      ? { x: position.x + Math.sign(dx), y: position.y }
-      : { x: position.x, y: position.y + Math.sign(dy) }
-
   return {
-    x: clamp(next.x, 0, width - 1),
-    y: clamp(next.y, 0, height - 1)
+    x: clamp(position.x + Math.sign(dx), 0, width - 1),
+    y: clamp(position.y + Math.sign(dy), 0, height - 1)
   }
 }
 
@@ -85,6 +78,19 @@ function stampStarterHamletTerrain(terrain: string[][], townCenter: Point): void
       if (dx <= 9 && dy <= 7) terrain[y][x] = 'grass'
       if ((x === townCenter.x || y === townCenter.y) && dx <= 8 && dy <= 7) terrain[y][x] = 'soil'
       if ((x === townCenter.x + 4 || x === townCenter.x - 4) && dy <= 3) terrain[y][x] = 'soil'
+    }
+  }
+}
+
+function stampTownLake(terrain: string[][], townCenter: Point): void {
+  for (let y = townCenter.y - 6; y <= townCenter.y + 5; y += 1) {
+    for (let x = townCenter.x - 15; x <= townCenter.x - 8; x += 1) {
+      if (!terrain[y]?.[x]) continue
+      const dx = x - (townCenter.x - 12)
+      const dy = y - townCenter.y
+      if ((dx * dx) / 16 + (dy * dy) / 20 <= 1.25) {
+        terrain[y][x] = 'water'
+      }
     }
   }
 }
@@ -337,7 +343,7 @@ function advanceAgent(save: WorldSave, agent: AgentState, index: number): void {
   if (carrying > 0) {
     agent.currentTask = '回城'
     agent.actionTicks = 0
-    agent.position = moveStep(agent.position, world.townCenter, world.width, world.height)
+    agent.position = moveStepDiagonal(agent.position, world.townCenter, world.width, world.height)
     return
   }
 
@@ -347,7 +353,7 @@ function advanceAgent(save: WorldSave, agent: AgentState, index: number): void {
       const enough = world.stockpile.wood >= nextBuilding.wood && world.stockpile.stone >= nextBuilding.stone
       if (enough) {
         agent.currentTask = `前往工地建设 ${nextBuilding.kind}`
-        agent.position = moveStep(agent.position, nextBuilding.position, world.width, world.height)
+        agent.position = moveStepDiagonal(agent.position, nextBuilding.position, world.width, world.height)
         if (samePoint(agent.position, nextBuilding.position)) {
           agent.actionTicks += 1
         } else {
@@ -373,7 +379,7 @@ function advanceAgent(save: WorldSave, agent: AgentState, index: number): void {
   if (!resource) {
     agent.currentTask = '巡逻'
     agent.actionTicks = 0
-    agent.position = moveStep(
+    agent.position = moveStepDiagonal(
       agent.position,
       {
         x: world.townCenter.x + ((index % 3) - 1) * 2,
@@ -386,7 +392,7 @@ function advanceAgent(save: WorldSave, agent: AgentState, index: number): void {
   }
 
   agent.currentTask = desiredResource === 'tree' ? '砍树' : '采石'
-  const moved = moveStep(agent.position, resource.position, world.width, world.height)
+  const moved = moveStepDiagonal(agent.position, resource.position, world.width, world.height)
   if (!samePoint(moved, agent.position)) {
     agent.actionTicks = 0
   }
@@ -448,6 +454,7 @@ export function createNewWorldSave(draft: SaveDraft): WorldSave {
   const townCenter = { x: Math.floor(width / 2), y: Math.floor(height / 2) }
   clearTownArea(terrain, townCenter)
   stampStarterHamletTerrain(terrain, townCenter)
+  stampTownLake(terrain, townCenter)
 
   const resources: ResourceNode[] = []
   for (let y = 0; y < height; y += 1) {
