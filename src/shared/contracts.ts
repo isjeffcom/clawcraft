@@ -27,9 +27,16 @@ export const pointSchema = z.object({
 })
 export type Point = z.infer<typeof pointSchema>
 
+export const smoothPositionSchema = z.object({
+  x: z.number(),
+  y: z.number()
+})
+export type SmoothPosition = z.infer<typeof smoothPositionSchema>
+
 export const playerStateSchema = z.object({
   name: z.string(),
-  position: pointSchema
+  position: pointSchema,
+  renderPosition: smoothPositionSchema
 })
 export type PlayerState = z.infer<typeof playerStateSchema>
 
@@ -91,6 +98,7 @@ export const agentStateSchema = z.object({
   role: z.enum(['admin', 'npc']),
   scriptId: z.string(),
   position: pointSchema,
+  renderPosition: smoothPositionSchema,
   inventory: inventorySchema,
   currentTask: z.string(),
   actionTicks: z.number().int().nonnegative(),

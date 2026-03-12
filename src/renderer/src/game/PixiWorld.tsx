@@ -102,6 +102,13 @@ function addTileSprite(container: Container, assetPath: string, x: number, y: nu
   return sprite
 }
 
+function toScreen(position: { x: number; y: number }, startX: number, startY: number, tileSize: number) {
+  return {
+    x: (position.x - startX) * tileSize,
+    y: (position.y - startY) * tileSize
+  }
+}
+
 function taskBubbleText(agent: WorldSave['world']['agents'][number]) {
   return agent.actionTicks > 0 ? `${agent.currentTask} · ${agent.actionTicks}/5` : agent.currentTask
 }
@@ -415,8 +422,7 @@ export function PixiWorld({ save, compact, onMovePlayer, playerTarget }: Props) 
       ) {
         return
       }
-      const localX = (agent.position.x - startX) * tileSize
-      const localY = (agent.position.y - startY) * tileSize
+      const { x: localX, y: localY } = toScreen(agent.renderPosition, startX, startY, tileSize)
       const shadow = new Graphics()
       shadow.ellipse(localX + tileSize / 2, localY + tileSize * 0.78, tileSize * 0.22, tileSize * 0.12).fill(0x020617, 0.35)
       agents.addChild(shadow)
@@ -464,8 +470,7 @@ export function PixiWorld({ save, compact, onMovePlayer, playerTarget }: Props) 
       save.world.player.position.y >= startY &&
       save.world.player.position.y < startY + visibleRows
     ) {
-      const localX = (save.world.player.position.x - startX) * tileSize
-      const localY = (save.world.player.position.y - startY) * tileSize
+      const { x: localX, y: localY } = toScreen(save.world.player.renderPosition, startX, startY, tileSize)
       const halo = new Graphics()
       halo.circle(localX + tileSize / 2, localY + tileSize / 2, tileSize * 0.34).stroke({ color: 0xfacc15, width: 3 })
       agents.addChild(halo)
@@ -762,14 +767,15 @@ function DomWorldFallback({
 
         const left = (agent.position.x - startX) * tileSize
         const top = (agent.position.y - startY) * tileSize
+        const { x: smoothLeft, y: smoothTop } = toScreen(agent.renderPosition, startX, startY, tileSize)
         return (
           <div key={agent.id}>
             {agent.role === 'admin' ? (
               <div
                 className="absolute rounded-full bg-slate-950/80 px-2 py-1 text-[10px] text-slate-100"
                 style={{
-                  left: left - tileSize * 0.9,
-                  top: top - tileSize * 0.95
+                  left: smoothLeft - tileSize * 0.9,
+                  top: smoothTop - tileSize * 0.95
                 }}
               >
                 {taskBubbleText(agent)}
@@ -792,8 +798,8 @@ function DomWorldFallback({
               alt={agent.name}
               className="absolute pixelated sprite-bob"
               style={{
-                left,
-                top: top - tileSize * 0.12,
+                left: smoothLeft,
+                top: smoothTop - tileSize * 0.12,
                 width: tileSize,
                 height: tileSize
               }}
@@ -807,11 +813,15 @@ function DomWorldFallback({
       save.world.player.position.y >= startY &&
       save.world.player.position.y < startY + visibleRows ? (
         <div>
+          {(() => {
+            const { x: smoothLeft, y: smoothTop } = toScreen(save.world.player.renderPosition, startX, startY, tileSize)
+            return (
+              <>
           <div
             className="absolute rounded-full"
             style={{
-              left: (save.world.player.position.x - startX) * tileSize + tileSize * 0.08,
-              top: (save.world.player.position.y - startY) * tileSize + tileSize * 0.08,
+              left: smoothLeft + tileSize * 0.08,
+              top: smoothTop + tileSize * 0.08,
               width: tileSize * 0.84,
               height: tileSize * 0.84,
               border: '2px solid #facc15'
@@ -822,12 +832,15 @@ function DomWorldFallback({
             alt={save.world.player.name}
             className="absolute pixelated sprite-bob"
             style={{
-              left: (save.world.player.position.x - startX) * tileSize,
-              top: (save.world.player.position.y - startY) * tileSize - tileSize * 0.12,
+              left: smoothLeft,
+              top: smoothTop - tileSize * 0.12,
               width: tileSize,
               height: tileSize
             }}
           />
+              </>
+            )
+          })()}
         </div>
       ) : null}
 

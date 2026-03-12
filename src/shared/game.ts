@@ -97,6 +97,10 @@ function createAgent(name: string, species: AgentSpecies, role: 'admin' | 'npc',
     role,
     scriptId: role === 'admin' ? 'admin-core' : 'settlement-worker',
     position,
+    renderPosition: {
+      x: position.x,
+      y: position.y
+    },
     inventory: {
       wood: 0,
       stone: 0
@@ -514,7 +518,8 @@ export function createNewWorldSave(draft: SaveDraft): WorldSave {
       townCenter,
       player: {
         name: 'God Avatar',
-        position: { x: townCenter.x + 1, y: townCenter.y + 1 }
+        position: { x: townCenter.x + 1, y: townCenter.y + 1 },
+        renderPosition: { x: townCenter.x + 1, y: townCenter.y + 1 }
       },
       stockpile: {
         wood: 6,
@@ -821,8 +826,16 @@ export function migrateWorldSave(raw: unknown): WorldSave {
   parsed.world.agents = parsed.world.agents.map((agent) => ({
     ...agent,
     actionTicks: agent.actionTicks ?? 0,
+    renderPosition: agent.renderPosition ?? { x: agent.position.x, y: agent.position.y },
     scriptId: agent.scriptId ?? (agent.role === 'admin' ? 'admin-core' : 'settlement-worker')
   }))
+  parsed.world.player = {
+    ...parsed.world.player,
+    renderPosition: parsed.world.player.renderPosition ?? {
+      x: parsed.world.player.position.x,
+      y: parsed.world.player.position.y
+    }
+  }
   return {
     ...parsed,
     meta: deriveSaveMeta(parsed, parsed.meta.updatedAt || Date.now())

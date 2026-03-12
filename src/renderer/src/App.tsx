@@ -722,6 +722,8 @@ function WorldWorkspace({
         const next = structuredClone(current)
         next.world.player.position.x = nextX
         next.world.player.position.y = nextY
+        next.world.player.renderPosition.x = nextX
+        next.world.player.renderPosition.y = nextY
         setPlayerTarget(null)
         runtimeRef.current?.replaceSave(next)
         return next
@@ -756,6 +758,51 @@ function WorldWorkspace({
 
     return () => window.clearInterval(timer)
   }, [playerTarget])
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setSave((current) => {
+        const next = structuredClone(current)
+        let changed = false
+
+        const nudge = (from: number, to: number) => {
+          const delta = to - from
+          if (Math.abs(delta) < 0.02) return to
+          return from + delta * 0.28
+        }
+
+        next.world.player.renderPosition.x = nudge(next.world.player.renderPosition.x, next.world.player.position.x)
+        next.world.player.renderPosition.y = nudge(next.world.player.renderPosition.y, next.world.player.position.y)
+
+        if (
+          next.world.player.renderPosition.x !== current.world.player.renderPosition.x ||
+          next.world.player.renderPosition.y !== current.world.player.renderPosition.y
+        ) {
+          changed = true
+        }
+
+        next.world.agents.forEach((agent, index) => {
+          agent.renderPosition.x = nudge(agent.renderPosition.x, agent.position.x)
+          agent.renderPosition.y = nudge(agent.renderPosition.y, agent.position.y)
+          if (
+            agent.renderPosition.x !== current.world.agents[index]?.renderPosition.x ||
+            agent.renderPosition.y !== current.world.agents[index]?.renderPosition.y
+          ) {
+            changed = true
+          }
+        })
+
+        if (changed) {
+          runtimeRef.current?.replaceSave(next)
+          return next
+        }
+
+        return current
+      })
+    }, 32)
+
+    return () => window.clearInterval(timer)
+  }, [])
 
   useEffect(() => {
     if (!canTalkToAdmin && conversationOpen) {
